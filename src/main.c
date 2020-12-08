@@ -17,6 +17,14 @@ int main(void)
 
     InitWindow(screenWidth, screenHeight, "raylib template - simple game");
 
+    // temporary workaround for mac high dpi, screen gets rendered in the bottom left quadrant of the window
+    // until the window moves, so just shimmy it a bit to get things rendering correctly right away
+    {
+        Vector2 windowPos = GetWindowPosition();
+        SetWindowPosition((int) windowPos.x + 1, (int) windowPos.y);
+        SetWindowPosition((int) windowPos.x, (int) windowPos.y);
+    }
+
     GameScreen currentScreen = LOGO;
 
     // TODO: Initialize all required variables and load all required data here!
