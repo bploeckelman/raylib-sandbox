@@ -1,9 +1,19 @@
 #include "raylib.h"
 
+#define RAYGUI_IMPLEMENTATION
+#define RAYGUI_SUPPORT_RICONS
+#include "../lib/raygui/raygui.h"
+#undef RAYGUI_IMPLEMENTATION
+
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
 typedef enum GameScreen { LOGO = 0, TITLE, GAMEPLAY, ENDING } GameScreen;
+
+typedef struct UIControls {
+    Rectangle buttonPos_StartGame;
+    const char *buttonText_StartGame;
+} UIControls;
 
 //----------------------------------------------------------------------------------
 // Main entry point
@@ -28,6 +38,17 @@ int main(void)
     GameScreen currentScreen = LOGO;
 
     // TODO: Initialize all required variables and load all required data here!
+
+    const int buttonWidth = 250;
+    const int buttonHeight = 40;
+    UIControls uiControls = { 0 };
+    uiControls.buttonPos_StartGame = (Rectangle) {screenWidth / 2 - buttonWidth / 2, screenHeight / 2 - buttonHeight / 2, buttonWidth, buttonHeight };
+    uiControls.buttonText_StartGame = "Click to Start";
+
+    Font font = LoadFont("../assets/fonts/open-sans-regular.ttf");
+    GuiSetFont(font);
+
+    Texture texture = LoadTexture("../assets/test.png");
 
     int framesCounter = 0;          // Useful to count frames
 
@@ -57,11 +78,6 @@ int main(void)
             {
                 // TODO: Update TITLE screen variables here!
 
-                // Press enter to change to GAMEPLAY screen
-                if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
-                {
-                    currentScreen = GAMEPLAY;
-                }
             } break;
             case GAMEPLAY:
             {
@@ -106,14 +122,21 @@ int main(void)
             {
                 // TODO: Draw TITLE screen here!
                 DrawRectangle(0, 0, screenWidth, screenHeight, GREEN);
-                DrawText("TITLE SCREEN", 20, 20, 40, DARKGREEN);
-                DrawText("PRESS ENTER or TAP to JUMP to GAMEPLAY SCREEN", 120, 220, 20, DARKGREEN);
 
+                GuiSetStyle(BUTTON, TEXT_ALIGNMENT, GUI_TEXT_ALIGN_CENTER);
+                if (GuiButton(uiControls.buttonPos_StartGame, GuiIconText(RICON_DOOR, uiControls.buttonText_StartGame))) {
+                    currentScreen = GAMEPLAY;
+                }
+
+                DrawText("TITLE SCREEN", 20, 20, 40, DARKGREEN);
             } break;
             case GAMEPLAY:
             {
                 // TODO: Draw GAMEPLAY screen here!
                 DrawRectangle(0, 0, screenWidth, screenHeight, PURPLE);
+
+                DrawTexture(texture, screenWidth / 2 - texture.width / 2, screenHeight / 2 - texture.height / 2, WHITE);
+
                 DrawText("GAMEPLAY SCREEN", 20, 20, 40, MAROON);
                 DrawText("PRESS ENTER or TAP to JUMP to ENDING SCREEN", 130, 220, 20, MAROON);
 
@@ -137,6 +160,8 @@ int main(void)
     //--------------------------------------------------------------------------------------
 
     // TODO: Unload all loaded data (textures, fonts, audio) here!
+    UnloadTexture(texture);
+    UnloadFont(font);
 
     CloseWindow();        // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
