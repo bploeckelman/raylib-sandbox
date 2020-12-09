@@ -61,8 +61,7 @@ void unloadWorld(World *world) {
 }
 
 bool collide(Rectangle collider1, Rectangle collider2) {
-    // TODO
-    return false;
+    return CheckCollisionRecs(collider1, collider2);
 }
 
 bool collidesWithSolids(World *world, Rectangle collider) {

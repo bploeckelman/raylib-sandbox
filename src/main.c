@@ -109,7 +109,7 @@ void Initialize() {
 
     initializeWorld(&game.world);
 
-    game.player.bounds = (Rectangle) {0, 0, 50, 100 };
+    game.player.bounds = (Rectangle) {225, -100, 50, 100 };
     game.player.center = getCenter(game.player.bounds);
 
     game.camera.target = game.player.center;
@@ -148,6 +148,8 @@ void Update() {
             if (IsKeyDown(KEY_D)) moveX(&game.player,  speed * dt, &game.world, NULL);
             if (IsKeyDown(KEY_W)) moveY(&game.player, -speed * dt, &game.world, NULL);
             if (IsKeyDown(KEY_S)) moveY(&game.player,  speed * dt, &game.world, NULL);
+
+            game.camera.target = game.player.center;
 
             // Press enter to change to ENDING screen
             if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
@@ -197,6 +199,11 @@ void Draw() {
 
             BeginMode2D(game.camera);
             {
+                for (int i = 0; i < stb_arr_len(game.world.solids); ++i) {
+                    Solid solid = game.world.solids[i];
+                    DrawRectangle(solid.bounds.x, solid.bounds.y, solid.bounds.width, solid.bounds.height, BROWN);
+                }
+
                 Texture texture = game.textures.test;
                 Rectangle srcRect = { 0, 0, texture.width, texture.height };
                 Rectangle dstRect = game.player.bounds;
@@ -207,8 +214,6 @@ void Draw() {
             EndMode2D();
 
             DrawText("GAMEPLAY SCREEN", 20, 20, 40, MAROON);
-            DrawText("PRESS ENTER or TAP to JUMP to ENDING SCREEN", 130, 220, 20, MAROON);
-
         } break;
         case ENDING:
         {
