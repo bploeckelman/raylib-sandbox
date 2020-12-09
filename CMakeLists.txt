@@ -25,5 +25,9 @@ if (NOT raylib_FOUND)
     endif()
 endif()
 
-add_executable(${PROJECT_NAME} src/main.c)
+add_executable(${PROJECT_NAME}
+        src/main.c
+        src/world.h
+        lib/stb/stb.h
+        )
 target_link_libraries(${PROJECT_NAME} raylib)

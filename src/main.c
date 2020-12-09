@@ -5,6 +5,11 @@
 #include "../lib/raygui/raygui.h"
 #undef RAYGUI_IMPLEMENTATION
 
+#define STB_DEFINE
+#include "../lib/stb/stb.h"
+
+#include "world.h"
+
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
@@ -32,6 +37,9 @@ typedef struct Game {
     UserInterface ui;
     Textures textures;
     GameScreen currentScreen;
+    Camera2D camera;
+    World world;
+    Actor player;
 } Game;
 
 //----------------------------------------------------------------------------------
@@ -42,7 +50,10 @@ static Game game = {
         .window = { 800,450,"raylib template - simple game" },
         .ui = {0},
         .textures = {0},
-        .currentScreen = LOGO
+        .currentScreen = LOGO,
+        .camera = {0},
+        .world = {0},
+        .player = {0}
 };
 
 //----------------------------------------------------------------------------------
@@ -75,6 +86,7 @@ int main(void)
 
 void Initialize() {
     InitWindow(game.window.width, game.window.height, game.window.title);
+    SetTargetFPS(60);
 
     // workaround for mac high dpi; screen gets rendered in the bottom left quadrant of the window
     // until the window moves, so just shimmy it a bit to get things rendering correctly right away
@@ -83,6 +95,8 @@ void Initialize() {
         SetWindowPosition((int) windowPos.x + 1, (int) windowPos.y);
         SetWindowPosition((int) windowPos.x, (int) windowPos.y);
     }
+
+    // --------------------------------
 
     const int buttonWidth = 250;
     const int buttonHeight = 40;
@@ -93,7 +107,15 @@ void Initialize() {
 
     game.textures.test = LoadTexture("../assets/test.png");
 
-    SetTargetFPS(60);
+    initializeWorld(&game.world);
+
+    game.player.bounds = (Rectangle) {0, 0, 50, 100 };
+    game.player.center = getCenter(game.player.bounds);
+
+    game.camera.target = game.player.center;
+    game.camera.offset = (Vector2) { game.window.width / 2, game.window.height / 2 };
+    game.camera.rotation = 0;
+    game.camera.zoom = 1;
 }
 
 // ------------------------------------------------------------------
@@ -105,9 +127,7 @@ void Update() {
     {
         case LOGO:
         {
-            // TODO: Update LOGO screen variables here!
-
-            framesCounter++;    // Count frames
+            framesCounter++;
 
             // Wait for 2 seconds (120 frames) before jumping to TITLE screen
             if (framesCounter > 120)
@@ -117,12 +137,17 @@ void Update() {
         } break;
         case TITLE:
         {
-            // TODO: Update TITLE screen variables here!
-
+            // ...
         } break;
         case GAMEPLAY:
         {
-            // TODO: Update GAMEPLAY screen variables here!
+            const float speed = 200;
+            const float dt = GetFrameTime();
+
+            if (IsKeyDown(KEY_A)) moveX(&game.player, -speed * dt, &game.world, NULL);
+            if (IsKeyDown(KEY_D)) moveX(&game.player,  speed * dt, &game.world, NULL);
+            if (IsKeyDown(KEY_W)) moveY(&game.player, -speed * dt, &game.world, NULL);
+            if (IsKeyDown(KEY_S)) moveY(&game.player,  speed * dt, &game.world, NULL);
 
             // Press enter to change to ENDING screen
             if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
@@ -132,8 +157,6 @@ void Update() {
         } break;
         case ENDING:
         {
-            // TODO: Update ENDING screen variables here!
-
             // Press enter to return to TITLE screen
             if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
             {
@@ -155,29 +178,33 @@ void Draw() {
     {
         case LOGO:
         {
-            // TODO: Draw LOGO screen here!
             DrawText("LOGO SCREEN", 20, 20, 40, LIGHTGRAY);
             DrawText("WAIT for 2 SECONDS...", 290, 220, 20, GRAY);
-
         } break;
         case TITLE:
         {
-            // TODO: Draw TITLE screen here!
             DrawRectangle(0, 0, game.window.width, game.window.height, GREEN);
 
             GuiSetStyle(BUTTON, TEXT_ALIGNMENT, GUI_TEXT_ALIGN_CENTER);
             if (GuiButton(game.ui.buttonPos_StartGame, GuiIconText(RICON_DOOR, game.ui.buttonText_StartGame))) {
                 game.currentScreen = GAMEPLAY;
             }
-
             DrawText("TITLE SCREEN", 20, 20, 40, DARKGREEN);
         } break;
         case GAMEPLAY:
         {
-            // TODO: Draw GAMEPLAY screen here!
             DrawRectangle(0, 0, game.window.width, game.window.height, PURPLE);
 
-            DrawTexture(game.textures.test, game.window.width / 2 - game.textures.test.width / 2, game.window.height / 2 - game.textures.test.height / 2, WHITE);
+            BeginMode2D(game.camera);
+            {
+                Texture texture = game.textures.test;
+                Rectangle srcRect = { 0, 0, texture.width, texture.height };
+                Rectangle dstRect = game.player.bounds;
+                Vector2 origin = {0};
+                float rotation = 0;
+                DrawTexturePro(texture, srcRect, dstRect, origin, rotation, WHITE);
+            }
+            EndMode2D();
 
             DrawText("GAMEPLAY SCREEN", 20, 20, 40, MAROON);
             DrawText("PRESS ENTER or TAP to JUMP to ENDING SCREEN", 130, 220, 20, MAROON);
@@ -185,11 +212,9 @@ void Draw() {
         } break;
         case ENDING:
         {
-            // TODO: Draw ENDING screen here!
             DrawRectangle(0, 0, game.window.width, game.window.height, BLUE);
             DrawText("ENDING SCREEN", 20, 20, 40, DARKBLUE);
             DrawText("PRESS ENTER or TAP to RETURN to TITLE SCREEN", 120, 220, 20, DARKBLUE);
-
         } break;
         default: break;
     }
@@ -202,4 +227,6 @@ void Draw() {
 void Unload() {
     UnloadTexture(game.textures.test);
     UnloadFont(game.ui.font);
+
+    unloadWorld(&game.world);
 }
