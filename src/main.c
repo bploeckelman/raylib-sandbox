@@ -9,6 +9,7 @@
 #include "../lib/stb/stb.h"
 
 #include "world.h"
+#include "assets.h"
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -46,15 +47,7 @@ typedef struct Game {
 // Globals
 //----------------------------------------------------------------------------------
 
-static Game game = {
-        .window = { 800,450,"raylib template - simple game" },
-        .ui = {0},
-        .textures = {0},
-        .currentScreen = LOGO,
-        .camera = {0},
-        .world = {0},
-        .player = {0}
-};
+static Game game = {0};
 
 //----------------------------------------------------------------------------------
 // Lifecycle function declarations
@@ -85,6 +78,9 @@ int main(void)
 //----------------------------------------------------------------------------------
 
 void Initialize() {
+    game.currentScreen = LOGO;
+
+    game.window = (Window) { 800, 450, "raylib template - simple game" };
     InitWindow(game.window.width, game.window.height, game.window.title);
     SetTargetFPS(60);
 
@@ -116,6 +112,8 @@ void Initialize() {
     game.camera.offset = (Vector2) { game.window.width / 2, game.window.height / 2 };
     game.camera.rotation = 0;
     game.camera.zoom = 1;
+
+    loadAssets();
 }
 
 // ------------------------------------------------------------------
@@ -234,4 +232,6 @@ void Unload() {
     UnloadFont(game.ui.font);
 
     unloadWorld(&game.world);
+
+    unloadAssets();
 }

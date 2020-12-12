@@ -29,5 +29,5 @@ add_executable(${PROJECT_NAME}
         src/main.c
         src/world.h
         lib/stb/stb.h
-        )
+        src/assets.h src/assets.c)
 target_link_libraries(${PROJECT_NAME} raylib)
