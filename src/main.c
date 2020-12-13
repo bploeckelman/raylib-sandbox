@@ -111,6 +111,7 @@ void Initialize() {
     game.player.bounds = (Rectangle) {200, -32, 32, 32 };
     game.player.center = getCenter(game.player.bounds);
     game.player.animation = getAnimation(character_idle);
+    game.player.facing = right;
 
     game.camera.target = game.player.center;
     game.camera.offset = (Vector2) { game.window.width / 2, game.window.height / 2 };
@@ -150,6 +151,11 @@ void Update() {
             if (IsKeyDown(KEY_D)) moveX(&game.player,  speed * dt, &game.world, NULL);
             if (IsKeyDown(KEY_W)) moveY(&game.player, -speed * dt, &game.world, NULL);
             if (IsKeyDown(KEY_S)) moveY(&game.player,  speed * dt, &game.world, NULL);
+
+            if (IsKeyReleased(KEY_SPACE)) {
+                if      (game.player.facing == left)  game.player.facing = right;
+                else if (game.player.facing == right) game.player.facing = left;
+            }
 
             game.camera.target = game.player.center;
 
@@ -206,8 +212,9 @@ void Draw() {
                     DrawRectangle(solid.bounds.x, solid.bounds.y, solid.bounds.width, solid.bounds.height, BROWN);
                 }
 
+                int hFlip = (game.player.facing == left) ? -1 : 1;
                 Texture2D texture = getAnimationFrame(&game.player.animation, game.player.stateTime);
-                Rectangle srcRect = { 0, 0, texture.width, texture.height };
+                Rectangle srcRect = { 0, 0, hFlip * texture.width, texture.height };
                 Rectangle dstRect = game.player.bounds;
                 Vector2 origin = {0};
                 float rotation = 0;

@@ -15,11 +15,14 @@ typedef struct Solid {
     Rectangle bounds;
 } Solid;
 
+typedef enum Facing { left, right } Facing;
+
 typedef struct Actor {
     Rectangle bounds;
     Vector2 center;
     Vector2 remainder;
     Animation animation;
+    Facing facing;
     float stateTime;
 } Actor;
 
