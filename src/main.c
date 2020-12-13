@@ -60,6 +60,8 @@ void Update();
 void Draw();
 void Unload();
 
+void updateCamera(Vector2 vector2);
+
 //----------------------------------------------------------------------------------
 // Main entry point
 //----------------------------------------------------------------------------------
@@ -102,6 +104,7 @@ void Initialize() {
     game.ui.buttonText_StartGame = "Click to Start";
     game.ui.font = LoadFont("../assets/fonts/open-sans-regular.ttf");
     GuiSetFont(game.ui.font);
+    GuiLoadStyle("../assets/ui/cyber.rgs");
 
     game.textures.test = LoadTexture("../assets/test.png");
     loadAssets();
@@ -124,6 +127,7 @@ void Initialize() {
 void Update() {
     static int framesCounter = 0;
 
+    const float dt = GetFrameTime();
     switch(game.currentScreen)
     {
         case LOGO:
@@ -142,41 +146,8 @@ void Update() {
         } break;
         case GAMEPLAY:
         {
-            const float speed = 200;
-            const float dt = GetFrameTime();
-
-            game.player.stateTime += dt;
-
-            // horizontal movement and facing
-            if (IsKeyUp(KEY_A) && IsKeyUp(KEY_D)) {
-                game.player.animation = getAnimation(character_idle_right);
-            }
-            else if (IsKeyDown(KEY_A)) {
-                moveX(&game.player, -speed * dt, &game.world, NULL);
-                if (game.player.animation.id != character_run_right) {
-                    game.player.animation = getAnimation(character_run_right);
-                    game.player.stateTime = 0;
-                }
-                game.player.facing = left;
-            }
-            else if (IsKeyDown(KEY_D)) {
-                moveX(&game.player,  speed * dt, &game.world, NULL);
-                if (game.player.animation.id != character_run_right) {
-                    game.player.animation = getAnimation(character_run_right);
-                    game.player.stateTime = 0;
-                }
-                game.player.facing = right;
-            }
-
-            // vertical movement
-            if (IsKeyDown(KEY_W)) {
-                moveY(&game.player, -speed * dt, &game.world, NULL);
-            }
-            else if (IsKeyDown(KEY_S)) {
-                moveY(&game.player,  speed * dt, &game.world, NULL);
-            }
-
-            game.camera.target = game.player.center;
+            updatePlayer(&game.player, &game.world, dt);
+            updateCamera(game.player.center);
 
             // Press enter to change to ENDING screen
             if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
@@ -194,6 +165,10 @@ void Update() {
         } break;
         default: break;
     }
+}
+
+void updateCamera(Vector2 target) {
+    game.camera.target = target;
 }
 
 // ------------------------------------------------------------------
@@ -238,13 +213,12 @@ void Draw() {
                 Vector2 origin = {0};
                 float rotation = 0;
                 DrawTexturePro(texture, srcRect, dstRect, origin, rotation, WHITE);
-
-                sprintf(textBuffer, "anim tex id: %d", texture.id);
             }
             EndMode2D();
 
-            DrawText("GAMEPLAY SCREEN", 20, 20, 40, MAROON);
-            DrawText(textBuffer, 20, 80, 20, GRAY);
+            const char *text = "Gameplay Screen";
+            Rectangle panel = { 10, 10, game.window.width - 2 * 10, 100 };
+            GuiWindowBox(panel, text);
         } break;
         case ENDING:
         {

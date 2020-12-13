@@ -21,6 +21,7 @@ typedef struct Actor {
     Rectangle bounds;
     Vector2 center;
     Vector2 remainder;
+    Vector2 velocity;
     Animation animation;
     Facing facing;
     float stateTime;
@@ -137,3 +138,38 @@ void moveY(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) {
         }
     }
 }
+
+void updatePlayer(Actor *player, World *world, float dt) {
+    const float speed = 200;
+    player->stateTime += dt;
+
+    // horizontal movement and facing
+    if (IsKeyUp(KEY_A) && IsKeyUp(KEY_D)) {
+        player->animation = getAnimation(character_idle_right);
+    }
+    else if (IsKeyDown(KEY_A)) {
+        moveX(player, -speed * dt, world, NULL);
+        if (player->animation.id != character_run_right) {
+            player->animation = getAnimation(character_run_right);
+            player->stateTime = 0;
+        }
+        player->facing = left;
+    }
+    else if (IsKeyDown(KEY_D)) {
+        moveX(player,  speed * dt, world, NULL);
+        if (player->animation.id != character_run_right) {
+            player->animation = getAnimation(character_run_right);
+            player->stateTime = 0;
+        }
+        player->facing = right;
+    }
+
+    // vertical movement
+    if (IsKeyDown(KEY_W)) {
+        moveY(player, -speed * dt, world, NULL);
+    }
+    else if (IsKeyDown(KEY_S)) {
+        moveY(player,  speed * dt, world, NULL);
+    }
+}
+
