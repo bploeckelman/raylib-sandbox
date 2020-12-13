@@ -49,6 +49,8 @@ typedef struct Game {
 
 static Game game = {0};
 
+char textBuffer[1000] = {0};
+
 //----------------------------------------------------------------------------------
 // Lifecycle function declarations
 //----------------------------------------------------------------------------------
@@ -102,18 +104,18 @@ void Initialize() {
     GuiSetFont(game.ui.font);
 
     game.textures.test = LoadTexture("../assets/test.png");
+    loadAssets();
 
     initializeWorld(&game.world);
 
-    game.player.bounds = (Rectangle) {225, -100, 50, 100 };
+    game.player.bounds = (Rectangle) {200, -32, 32, 32 };
     game.player.center = getCenter(game.player.bounds);
+    game.player.animation = getAnimation(character_idle);
 
     game.camera.target = game.player.center;
     game.camera.offset = (Vector2) { game.window.width / 2, game.window.height / 2 };
     game.camera.rotation = 0;
     game.camera.zoom = 1;
-
-    loadAssets();
 }
 
 // ------------------------------------------------------------------
@@ -141,6 +143,8 @@ void Update() {
         {
             const float speed = 200;
             const float dt = GetFrameTime();
+
+            game.player.stateTime += dt;
 
             if (IsKeyDown(KEY_A)) moveX(&game.player, -speed * dt, &game.world, NULL);
             if (IsKeyDown(KEY_D)) moveX(&game.player,  speed * dt, &game.world, NULL);
@@ -202,16 +206,19 @@ void Draw() {
                     DrawRectangle(solid.bounds.x, solid.bounds.y, solid.bounds.width, solid.bounds.height, BROWN);
                 }
 
-                Texture texture = game.textures.test;
+                Texture2D texture = getAnimationFrame(&game.player.animation, game.player.stateTime);
                 Rectangle srcRect = { 0, 0, texture.width, texture.height };
                 Rectangle dstRect = game.player.bounds;
                 Vector2 origin = {0};
                 float rotation = 0;
                 DrawTexturePro(texture, srcRect, dstRect, origin, rotation, WHITE);
+
+                sprintf(textBuffer, "anim tex id: %d", texture.id);
             }
             EndMode2D();
 
             DrawText("GAMEPLAY SCREEN", 20, 20, 40, MAROON);
+            DrawText(textBuffer, 20, 80, 20, GRAY);
         } break;
         case ENDING:
         {

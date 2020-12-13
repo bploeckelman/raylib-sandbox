@@ -3,6 +3,8 @@
 #include "raylib.h"
 #include "../lib/stb/stb.h"
 
+#include "assets.h"
+
 //----------------------------------------------------------------------------------
 // Data structures
 //----------------------------------------------------------------------------------
@@ -17,6 +19,8 @@ typedef struct Actor {
     Rectangle bounds;
     Vector2 center;
     Vector2 remainder;
+    Animation animation;
+    float stateTime;
 } Actor;
 
 typedef struct World {
