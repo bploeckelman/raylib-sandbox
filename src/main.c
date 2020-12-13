@@ -110,7 +110,7 @@ void Initialize() {
 
     game.player.bounds = (Rectangle) {200, -32, 32, 32 };
     game.player.center = getCenter(game.player.bounds);
-    game.player.animation = getAnimation(character_idle);
+    game.player.animation = getAnimation(character_idle_right);
     game.player.facing = right;
 
     game.camera.target = game.player.center;
@@ -147,14 +147,33 @@ void Update() {
 
             game.player.stateTime += dt;
 
-            if (IsKeyDown(KEY_A)) moveX(&game.player, -speed * dt, &game.world, NULL);
-            if (IsKeyDown(KEY_D)) moveX(&game.player,  speed * dt, &game.world, NULL);
-            if (IsKeyDown(KEY_W)) moveY(&game.player, -speed * dt, &game.world, NULL);
-            if (IsKeyDown(KEY_S)) moveY(&game.player,  speed * dt, &game.world, NULL);
+            // horizontal movement and facing
+            if (IsKeyUp(KEY_A) && IsKeyUp(KEY_D)) {
+                game.player.animation = getAnimation(character_idle_right);
+            }
+            else if (IsKeyDown(KEY_A)) {
+                moveX(&game.player, -speed * dt, &game.world, NULL);
+                if (game.player.animation.id != character_run_right) {
+                    game.player.animation = getAnimation(character_run_right);
+                    game.player.stateTime = 0;
+                }
+                game.player.facing = left;
+            }
+            else if (IsKeyDown(KEY_D)) {
+                moveX(&game.player,  speed * dt, &game.world, NULL);
+                if (game.player.animation.id != character_run_right) {
+                    game.player.animation = getAnimation(character_run_right);
+                    game.player.stateTime = 0;
+                }
+                game.player.facing = right;
+            }
 
-            if (IsKeyReleased(KEY_SPACE)) {
-                if      (game.player.facing == left)  game.player.facing = right;
-                else if (game.player.facing == right) game.player.facing = left;
+            // vertical movement
+            if (IsKeyDown(KEY_W)) {
+                moveY(&game.player, -speed * dt, &game.world, NULL);
+            }
+            else if (IsKeyDown(KEY_S)) {
+                moveY(&game.player,  speed * dt, &game.world, NULL);
             }
 
             game.camera.target = game.player.center;

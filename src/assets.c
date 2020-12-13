@@ -19,10 +19,10 @@ Animation loadAnimation(AnimID animId, const char *baseFilename, int numFrames);
 //----------------------------------------------------------------------------------
 
 void loadAssets() {
-    loadAnimation(character_idle,      "../assets/character/char-idle",     10);
-//    loadAnimation(character_run_right, "../assets/character/char-run-right", 6);
-//    loadAnimation(character_jump_up,   "../assets/character/char-jump-up",   1);
-//    loadAnimation(character_jump_down, "../assets/character/char-jump-down", 1);
+    loadAnimation(character_idle_right, "../assets/character/char-idle", 10);
+    loadAnimation(character_run_right, "../assets/character/char-run-right", 6);
+    loadAnimation(character_jump_up,   "../assets/character/char-jump-up",   1);
+    loadAnimation(character_jump_down, "../assets/character/char-jump-down", 1);
 }
 
 void unloadAssets() {

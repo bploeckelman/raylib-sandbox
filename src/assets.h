@@ -3,7 +3,7 @@
 #include "raylib.h"
 
 typedef enum AnimID {
-      character_idle = 0
+      character_idle_right = 0
     , character_run_right
     , character_jump_up
     , character_jump_down
