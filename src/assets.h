@@ -25,6 +25,9 @@ typedef struct Animation {
 } Animation;
 
 typedef struct Assets {
+    Texture2D icon_gamepad_ps;
+    Texture2D icon_gamepad_xbox;
+
     Texture2D *textures;
     Animation *animations;
 } Assets;

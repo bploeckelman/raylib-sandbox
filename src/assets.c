@@ -6,7 +6,7 @@
 // Global variable initializations
 //----------------------------------------------------------------------------------
 
-static Assets assets = {0};
+Assets assets = {0};
 
 //----------------------------------------------------------------------------------
 // Private function declarations
@@ -20,9 +20,14 @@ Animation loadAnimation(AnimID animId, const char *baseFilename, int numFrames);
 
 void loadAssets() {
     loadAnimation(character_idle_right, "../assets/character/char-idle", 10);
-    loadAnimation(character_run_right, "../assets/character/char-run-right", 6);
-    loadAnimation(character_jump_up,   "../assets/character/char-jump-up",   1);
-    loadAnimation(character_jump_down, "../assets/character/char-jump-down", 1);
+    loadAnimation(character_run_right,  "../assets/character/char-run-right", 6);
+    loadAnimation(character_jump_up,    "../assets/character/char-jump-up",   1);
+    loadAnimation(character_jump_down,  "../assets/character/char-jump-down", 1);
+
+    assets.icon_gamepad_ps   = LoadTexture("../assets/icons/gamepad-ps.png");
+    assets.icon_gamepad_xbox = LoadTexture("../assets/icons/gamepad-xbox.png");
+    stb_arr_push(assets.textures, assets.icon_gamepad_ps);
+    stb_arr_push(assets.textures, assets.icon_gamepad_xbox);
 }
 
 void unloadAssets() {
@@ -68,6 +73,8 @@ Animation loadAnimation(AnimID animId, const char *baseFilename, int numFrames) 
     }
 
     stb_arr_push(assets.animations, animation);
+
+    return animation;
 }
 
 Animation getAnimation(AnimID animId) {

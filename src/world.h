@@ -143,11 +143,22 @@ void updatePlayer(Actor *player, World *world, float dt) {
     const float speed = 200;
     player->stateTime += dt;
 
+    int gamepad = GAMEPAD_PLAYER1;
+    bool gamepadActive = IsGamepadAvailable(gamepad);
+
+    bool keyUpLeft  = IsKeyUp(KEY_A) && (gamepadActive && IsGamepadButtonUp(gamepad, GAMEPAD_BUTTON_LEFT_FACE_LEFT));
+    bool keyUpRight = IsKeyUp(KEY_D) && (gamepadActive && IsGamepadButtonUp(gamepad, GAMEPAD_BUTTON_LEFT_FACE_RIGHT));
+
+    bool keyDownLeft  = IsKeyDown(KEY_A) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_LEFT));
+    bool keyDownRight = IsKeyDown(KEY_D) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_RIGHT));
+    bool keyDownUp    = IsKeyDown(KEY_W) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_UP));
+    bool keyDownDown  = IsKeyDown(KEY_S) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_DOWN));
+
     // horizontal movement and facing
-    if (IsKeyUp(KEY_A) && IsKeyUp(KEY_D)) {
+    if (keyUpLeft && keyUpRight) {
         player->animation = getAnimation(character_idle_right);
     }
-    else if (IsKeyDown(KEY_A)) {
+    else if (keyDownLeft) {
         moveX(player, -speed * dt, world, NULL);
         if (player->animation.id != character_run_right) {
             player->animation = getAnimation(character_run_right);
@@ -155,7 +166,7 @@ void updatePlayer(Actor *player, World *world, float dt) {
         }
         player->facing = left;
     }
-    else if (IsKeyDown(KEY_D)) {
+    else if (keyDownRight) {
         moveX(player,  speed * dt, world, NULL);
         if (player->animation.id != character_run_right) {
             player->animation = getAnimation(character_run_right);
@@ -165,10 +176,10 @@ void updatePlayer(Actor *player, World *world, float dt) {
     }
 
     // vertical movement
-    if (IsKeyDown(KEY_W)) {
+    if (keyDownUp) {
         moveY(player, -speed * dt, world, NULL);
     }
-    else if (IsKeyDown(KEY_S)) {
+    else if (keyDownDown) {
         moveY(player,  speed * dt, world, NULL);
     }
 }

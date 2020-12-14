@@ -10,7 +10,6 @@
 #include "../lib/stb/stb.h"
 
 #include "world.h"
-#include "assets.h"
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -51,6 +50,7 @@ typedef struct Game {
 static Game game = {0};
 
 char textBuffer[1000] = {0};
+char gamepadName[1000] = {0};
 
 //----------------------------------------------------------------------------------
 // Lifecycle function declarations
@@ -147,6 +147,10 @@ void Update() {
         } break;
         case GAMEPLAY:
         {
+            if (IsGamepadAvailable(GAMEPAD_PLAYER1)) {
+                sprintf(gamepadName, "%s", GetGamepadName(GAMEPAD_PLAYER1));
+            }
+
             updatePlayer(&game.player, &game.world, dt);
             updateCamera(game.player.center, dt);
 
@@ -239,13 +243,28 @@ void Draw() {
             };
             GuiWindowBox(panel, "Gameplay Screen");
 
-            Rectangle bounds = {
-                    panel.x + margin,
-                    panel.y + WINDOW_STATUSBAR_HEIGHT + margin,
-                    panel.width - 2 * margin,
-                    panel.height - WINDOW_STATUSBAR_HEIGHT - 2 * margin
-            };
-            GuiGroupBox(bounds, "Menu Group");
+            if (IsGamepadAvailable(GAMEPAD_PLAYER1)) {
+                Rectangle gamepadBoxBounds = {
+                        panel.x + margin,
+                        panel.y + WINDOW_STATUSBAR_HEIGHT + margin,
+                        panel.width - 2 * margin,
+                        panel.height - WINDOW_STATUSBAR_HEIGHT - 2 * margin
+                };
+                GuiGroupBox(gamepadBoxBounds, "Gamepad");
+                GuiDrawText(gamepadName, gamepadBoxBounds, GUI_TEXT_ALIGN_CENTER, WHITE);
+                Texture2D icon = assets.icon_gamepad_ps;
+                float scaledHeight = gamepadBoxBounds.height - 2 * margin;
+                float scaledWidth = icon.width * (scaledHeight / icon.height);
+                Rectangle srcRect = { 0, 0, icon.width, icon.height };
+                Rectangle dstRect = {
+                        gamepadBoxBounds.x + margin,
+                        gamepadBoxBounds.y + gamepadBoxBounds.height / 2 - scaledHeight / 2,
+                        scaledWidth, scaledHeight
+                };
+                Vector2 origin = {0};
+                float rotation = 0;
+                DrawTexturePro(icon, srcRect, dstRect, origin, rotation, GREEN);
+            }
         } break;
         case ENDING:
         {
