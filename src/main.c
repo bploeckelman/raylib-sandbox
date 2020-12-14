@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "raymath.h"
 
 #define RAYGUI_IMPLEMENTATION
 #define RAYGUI_SUPPORT_RICONS
@@ -60,7 +61,7 @@ void Update();
 void Draw();
 void Unload();
 
-void updateCamera(Vector2 vector2);
+void updateCamera(Vector2 vector2, float dt);
 
 //----------------------------------------------------------------------------------
 // Main entry point
@@ -147,10 +148,10 @@ void Update() {
         case GAMEPLAY:
         {
             updatePlayer(&game.player, &game.world, dt);
-            updateCamera(game.player.center);
+            updateCamera(game.player.center, dt);
 
             // Press enter to change to ENDING screen
-            if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
+            if (IsKeyPressed(KEY_ENTER)) // || IsGestureDetected(GESTURE_TAP))
             {
                 game.currentScreen = ENDING;
             }
@@ -167,8 +168,21 @@ void Update() {
     }
 }
 
-void updateCamera(Vector2 target) {
-    game.camera.target = target;
+void updateCamera(Vector2 target, float dt) {
+    static float minSpeed = 50;
+    static float minEffectLength = 20;
+    static float fractionSpeed = 0.9f;
+
+    game.camera.offset = (Vector2) { game.window.width / 2, game.window.height / 2 };
+    Vector2 diff = Vector2Subtract(target, game.camera.target);
+    float length = Vector2Length(diff);
+
+    if (length > minEffectLength) {
+        float speed = fmaxf(fractionSpeed * length, minSpeed);
+        float scale = speed * dt / length;
+        Vector2 deltaTarget = Vector2Scale(diff, scale);
+        game.camera.target = Vector2Add(game.camera.target, deltaTarget);
+    }
 }
 
 // ------------------------------------------------------------------
@@ -216,9 +230,22 @@ void Draw() {
             }
             EndMode2D();
 
-            const char *text = "Gameplay Screen";
-            Rectangle panel = { 10, 10, game.window.width - 2 * 10, 100 };
-            GuiWindowBox(panel, text);
+            const float margin = 10;
+            Rectangle panel = {
+                    margin,
+                    margin,
+                    game.window.width - 2 * margin,
+                    100
+            };
+            GuiWindowBox(panel, "Gameplay Screen");
+
+            Rectangle bounds = {
+                    panel.x + margin,
+                    panel.y + WINDOW_STATUSBAR_HEIGHT + margin,
+                    panel.width - 2 * margin,
+                    panel.height - WINDOW_STATUSBAR_HEIGHT - 2 * margin
+            };
+            GuiGroupBox(bounds, "Menu Group");
         } break;
         case ENDING:
         {
