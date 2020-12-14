@@ -25,6 +25,8 @@ typedef struct Window {
 
 typedef struct UserInterface {
     Font font;
+    bool show;
+
     Rectangle buttonPos_StartGame;
     const char *buttonText_StartGame;
 } UserInterface;
@@ -104,6 +106,7 @@ void Initialize() {
     game.ui.buttonPos_StartGame = (Rectangle) {game.window.width / 2 - buttonWidth / 2, game.window.height / 2 - buttonHeight / 2, buttonWidth, buttonHeight };
     game.ui.buttonText_StartGame = "Click to Start";
     game.ui.font = LoadFont("../assets/fonts/open-sans-regular.ttf");
+    game.ui.show = false;
     GuiSetFont(game.ui.font);
     GuiLoadStyle("../assets/ui/cyber.rgs");
 
@@ -234,36 +237,70 @@ void Draw() {
             }
             EndMode2D();
 
-            const float margin = 10;
-            Rectangle panel = {
-                    margin,
-                    margin,
-                    game.window.width - 2 * margin,
-                    100
-            };
-            GuiWindowBox(panel, "Gameplay Screen");
-
-            if (IsGamepadAvailable(GAMEPAD_PLAYER1)) {
-                Rectangle gamepadBoxBounds = {
-                        panel.x + margin,
-                        panel.y + WINDOW_STATUSBAR_HEIGHT + margin,
-                        panel.width - 2 * margin,
-                        panel.height - WINDOW_STATUSBAR_HEIGHT - 2 * margin
+            if (game.ui.show) {
+                const float margin = 10;
+                Rectangle panel = {
+                        margin,
+                        margin,
+                        game.window.width - 2 * margin,
+                        100
                 };
-                GuiGroupBox(gamepadBoxBounds, "Gamepad");
-                GuiDrawText(gamepadName, gamepadBoxBounds, GUI_TEXT_ALIGN_CENTER, WHITE);
-                Texture2D icon = assets.icon_gamepad_ps;
-                float scaledHeight = gamepadBoxBounds.height - 2 * margin;
+                if (GuiWindowBox(panel, "Gameplay Screen")) {
+                    printf("Clicked window box\n");
+                    game.ui.show = false;
+                }
+
+                if (IsGamepadAvailable(GAMEPAD_PLAYER1)) {
+                    Rectangle gamepadBoxBounds = {
+                            panel.x + margin,
+                            panel.y + WINDOW_STATUSBAR_HEIGHT + margin,
+                            panel.width - 2 * margin,
+                            panel.height - WINDOW_STATUSBAR_HEIGHT - 2 * margin
+                    };
+                    GuiGroupBox(gamepadBoxBounds, "Gamepad");
+                    GuiDrawText(gamepadName, gamepadBoxBounds, GUI_TEXT_ALIGN_CENTER, WHITE);
+
+                    Texture2D icon = assets.icon_gamepad_ps;
+                    float scaledHeight = gamepadBoxBounds.height - 2 * margin;
+                    float scaledWidth = icon.width * (scaledHeight / icon.height);
+                    Rectangle srcRect = { 0, 0, icon.width, icon.height };
+                    Rectangle dstRect = {
+                            gamepadBoxBounds.x + margin,
+                            gamepadBoxBounds.y + gamepadBoxBounds.height / 2 - scaledHeight / 2,
+                            scaledWidth, scaledHeight
+                    };
+                    Vector2 origin = {0};
+                    float rotation = 0;
+                    DrawTexturePro(icon, srcRect, dstRect, origin, rotation, GREEN);
+                }
+            } else {
+                float margin = 10;
+                Rectangle panel = { margin, margin, 120, 50 };
+                GuiPanel(panel);
+
+                Texture2D icon = assets.icon_gamepad_xbox;
+                float scaledHeight = panel.height - 2 * margin;
                 float scaledWidth = icon.width * (scaledHeight / icon.height);
                 Rectangle srcRect = { 0, 0, icon.width, icon.height };
                 Rectangle dstRect = {
-                        gamepadBoxBounds.x + margin,
-                        gamepadBoxBounds.y + gamepadBoxBounds.height / 2 - scaledHeight / 2,
+                        panel.x,
+                        panel.y + panel.height / 2 - scaledHeight / 2,
                         scaledWidth, scaledHeight
                 };
                 Vector2 origin = {0};
                 float rotation = 0;
-                DrawTexturePro(icon, srcRect, dstRect, origin, rotation, GREEN);
+                DrawTexturePro(icon, srcRect, dstRect, origin, rotation, WHITE);
+
+                float buttonHeight = panel.height - 2 * margin;
+                Rectangle button = {
+                        dstRect.x + dstRect.width,
+                        panel.y + panel.height / 2 - buttonHeight / 2,
+                        panel.width - scaledWidth,
+                        buttonHeight
+                };
+                if (GuiLabelButton(button, "Menu")) {
+                    game.ui.show = true;
+                }
             }
         } break;
         case ENDING:

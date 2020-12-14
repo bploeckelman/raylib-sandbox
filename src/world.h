@@ -52,9 +52,10 @@ Vector2 getCenter(Rectangle rect) {
 
 void initializeWorld(World *world) {
     (*world) = (World) {0};
-    stb_arr_push(world->solids, ((Solid) {
-            (Rectangle) { 0, 0, 500, 20 }
-    }));
+    stb_arr_push(world->solids, ((Solid) { (Rectangle) { 0, 0, 500, 20 } }));
+    stb_arr_push(world->solids, ((Solid) { (Rectangle) { 0, -100, 20, 100 } }));
+    stb_arr_push(world->solids, ((Solid) { (Rectangle) { 480, -100, 20, 100 } }));
+    stb_arr_push(world->solids, ((Solid) { (Rectangle) { 0, -120, 500, 20 } }));
 }
 
 void unloadWorld(World *world) {
