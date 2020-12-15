@@ -15,7 +15,7 @@
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
 
-typedef enum GameScreen { LOGO = 0, TITLE, GAMEPLAY, ENDING } GameScreen;
+typedef enum GameScreen { LOGO = 0, TITLE, GAMEPLAY, EDITING } GameScreen;
 
 typedef struct Window {
     int width;
@@ -157,16 +157,16 @@ void Update() {
             updatePlayer(&game.player, &game.world, dt);
             updateCamera(game.player.center, dt);
 
-            // Press enter to change to ENDING screen
+            // Press enter to change to EDITING screen
             if (IsKeyPressed(KEY_ENTER)) // || IsGestureDetected(GESTURE_TAP))
             {
-                game.currentScreen = ENDING;
+                game.currentScreen = EDITING;
             }
         } break;
-        case ENDING:
+        case EDITING:
         {
             // Press enter to return to TITLE screen
-            if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
+            if (IsKeyPressed(KEY_ENTER)) // || IsGestureDetected(GESTURE_TAP))
             {
                 game.currentScreen = TITLE;
             }
@@ -203,11 +203,13 @@ void Draw() {
     {
         case LOGO:
         {
+            SetMouseCursor(MOUSE_CURSOR_DEFAULT);
             DrawText("LOGO SCREEN", 20, 20, 40, LIGHTGRAY);
             DrawText("WAIT for 2 SECONDS...", 290, 220, 20, GRAY);
         } break;
         case TITLE:
         {
+            SetMouseCursor(MOUSE_CURSOR_DEFAULT);
             DrawRectangle(0, 0, game.window.width, game.window.height, GREEN);
 
             GuiSetStyle(BUTTON, TEXT_ALIGNMENT, GUI_TEXT_ALIGN_CENTER);
@@ -218,6 +220,8 @@ void Draw() {
         } break;
         case GAMEPLAY:
         {
+            SetMouseCursor(MOUSE_CURSOR_DEFAULT);
+
             DrawRectangle(0, 0, game.window.width, game.window.height, PURPLE);
 
             BeginMode2D(game.camera);
@@ -303,11 +307,59 @@ void Draw() {
                 }
             }
         } break;
-        case ENDING:
+        case EDITING:
         {
+            SetMouseCursor(MOUSE_CURSOR_CROSSHAIR);
+
             DrawRectangle(0, 0, game.window.width, game.window.height, BLUE);
-            DrawText("ENDING SCREEN", 20, 20, 40, DARKBLUE);
-            DrawText("PRESS ENTER or TAP to RETURN to TITLE SCREEN", 120, 220, 20, DARKBLUE);
+            DrawText("EDITING SCREEN", 20, 20, 40, DARKBLUE);
+
+            BeginMode2D(game.camera);
+            {
+                for (int i = 0; i < stb_arr_len(game.world.solids); ++i) {
+                    Solid solid = game.world.solids[i];
+                    DrawRectangle(solid.bounds.x, solid.bounds.y, solid.bounds.width, solid.bounds.height, (Color) { 0, 250, 250, 128 });
+                }
+
+                static bool mouseDragging    = false;
+                static bool mousePressedLeft = false;
+                static bool mouseDraggedLeft = false;
+                static Vector2 draggedStart = {0};
+
+                Vector2 mousePos = GetMousePosition();
+                Vector2 worldPos = GetScreenToWorld2D(mousePos, game.camera);
+
+                if (mouseDraggedLeft) {
+                    Vector2 draggedEnd = worldPos;
+                    Rectangle bounds = { draggedStart.x, draggedStart.y, draggedEnd.x - draggedStart.x, draggedEnd.y - draggedStart.y };
+                    DrawRectangleGradientV(bounds.x, bounds.y, bounds.width, bounds.height, LIME, GREEN);
+                }
+
+                if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+                    if (!mousePressedLeft) {
+                        mousePressedLeft = true;
+                        draggedStart = worldPos;
+                    } else {
+                        mouseDraggedLeft = true;
+                    }
+                } else if (IsMouseButtonUp(MOUSE_LEFT_BUTTON)) {
+                    if (mouseDraggedLeft) {
+                        Vector2 draggedEnd = worldPos;
+                        // TODO: check for and fixup negative rectangle sizes (if draggedEnd < draggedStart on any axis)
+                        Rectangle bounds = { draggedStart.x, draggedStart.y, draggedEnd.x - draggedStart.x, draggedEnd.y - draggedStart.y };
+                        stb_arr_push(game.world.solids, (Solid) { bounds });
+                        TraceLog(LOG_INFO, "Added solid (%.1f, %.1f, %.0f, %.0f)", bounds.x, bounds.y, bounds.width, bounds.height);
+                    } else {
+                        // TODO: handle selecting an existing solid
+                    }
+
+                    mousePressedLeft = false;
+                    mouseDraggedLeft = false;
+                }
+            }
+            EndMode2D();
+
+            DrawText("PRESS ENTER to RETURN to TITLE SCREEN", 120, game.window.height - 30, 20, DARKBLUE);
         } break;
         default: break;
     }

@@ -52,6 +52,8 @@ Vector2 getCenter(Rectangle rect) {
 
 void initializeWorld(World *world) {
     (*world) = (World) {0};
+    // TODO: add a gameplay screen where you can click & drag to create solids (on an integer grid)
+    //       then save solids out to a file format and change this to load from file
     stb_arr_push(world->solids, ((Solid) { (Rectangle) { 0, 0, 500, 20 } }));
     stb_arr_push(world->solids, ((Solid) { (Rectangle) { 0, -100, 20, 100 } }));
     stb_arr_push(world->solids, ((Solid) { (Rectangle) { 480, -100, 20, 100 } }));
