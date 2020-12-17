@@ -9,10 +9,10 @@
 // Data structures
 //----------------------------------------------------------------------------------
 
-typedef void (*ON_COLLIDE)();
-
 typedef struct Solid {
     Rectangle bounds;
+    Vector2 remainder;
+    bool collidable;
 } Solid;
 
 typedef enum Facing { left, right } Facing;
@@ -21,11 +21,11 @@ typedef struct Actor {
     Rectangle bounds;
     Vector2 center;
     Vector2 remainder;
-    Vector2 velocity;
+    Vector2 speed;
     Animation animation;
     Facing facing;
     float stateTime;
-} Actor;
+} Actor, *ActorPtr;
 
 typedef struct World {
     Solid *solids;
@@ -33,8 +33,10 @@ typedef struct World {
 } World;
 
 //----------------------------------------------------------------------------------
-// Utility functions
+// Utility
 //----------------------------------------------------------------------------------
+
+typedef void (*ON_COLLIDE)(Actor *actor);
 
 int sign(float value) {
     if      (value > 0) return 1;
@@ -50,14 +52,33 @@ Vector2 getCenter(Rectangle rect) {
 // World functions
 //----------------------------------------------------------------------------------
 
+static int solidMinX = 20;
+static int solidMaxX = 480;
+
 void initializeWorld(World *world) {
     (*world) = (World) {0};
+
+    Solid movingSolid = ((Solid) {(Rectangle) {solidMinX, -85, 50, 30 }, Vector2Zero(), true });
+    stb_arr_push(world->solids, movingSolid);
+
     // TODO: add a gameplay screen where you can click & drag to create solids (on an integer grid)
     //       then save solids out to a file format and change this to load from file
-    stb_arr_push(world->solids, ((Solid) { (Rectangle) { 0, 0, 500, 20 } }));
-    stb_arr_push(world->solids, ((Solid) { (Rectangle) { 0, -100, 20, 100 } }));
-    stb_arr_push(world->solids, ((Solid) { (Rectangle) { 480, -100, 20, 100 } }));
-    stb_arr_push(world->solids, ((Solid) { (Rectangle) { 0, -120, 500, 20 } }));
+    stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0,    0, 500,  20 }, Vector2Zero(), true }));
+    stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0, -100,  20, 100 }, Vector2Zero(), true }));
+    stb_arr_push(world->solids, ((Solid) { (Rectangle) { 480, -100,  20, 100 }, Vector2Zero(), true }));
+    stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0, -120, 500,  20 }, Vector2Zero(), true }));
+
+    Rectangle playerInitialBounds = {200, -32, 32, 32 };
+    Actor player = (Actor) {
+            .bounds = playerInitialBounds,
+            .center = getCenter(playerInitialBounds),
+            .remainder = Vector2Zero(),
+            .speed = Vector2Zero(),
+            .animation = getAnimation(character_idle_right),
+            .facing = right,
+            .stateTime = 0
+    };
+    stb_arr_push(world->actors, player);
 }
 
 void unloadWorld(World *world) {
@@ -78,6 +99,7 @@ bool collide(Rectangle collider1, Rectangle collider2) {
 bool collidesWithSolids(World *world, Rectangle collider) {
     for (int i = 0; i < stb_arr_len(world->solids); ++i) {
         Solid solid = world->solids[i];
+        if (!solid.collidable) continue;
         if (collide(solid.bounds, collider)) {
             return true;
         }
@@ -85,11 +107,21 @@ bool collidesWithSolids(World *world, Rectangle collider) {
     return false;
 }
 
+bool isRiding(Actor *actor, Solid *solid) {
+    // TODO ....
+    return false;
+}
+
+void onCollide_Squish(Actor *actor) {
+    // TODO:
+    TraceLog(LOG_INFO, "squished actor");
+}
+
 //----------------------------------------------------------------------------------
 // Actor functions
 //----------------------------------------------------------------------------------
 
-void moveX(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) {
+void moveActorX(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) {
     actor->remainder.x += amount;
     int move = round(actor->remainder.x);
     if (move == 0) return;
@@ -101,7 +133,7 @@ void moveX(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) {
         if (collidesWithSolids(world, nextStepBounds)) {
             // hit a solid, don't take the next step and trigger the collide callback
             if (onCollide != NULL) {
-                onCollide();
+                onCollide(actor);
             }
             break;
         } else {
@@ -113,7 +145,7 @@ void moveX(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) {
     }
 }
 
-void moveY(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) {
+void moveActorY(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) {
     actor->remainder.y += amount;
     int move = round(actor->remainder.y);
     if (move == 0) return;
@@ -130,7 +162,7 @@ void moveY(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) {
         if (collidesWithSolids(world, nextStepBounds)) {
             // hit a solid, don't take the next step and trigger the collide callback
             if (onCollide != NULL) {
-                onCollide();
+                onCollide(actor);
             }
             break;
         } else {
@@ -162,7 +194,7 @@ void updatePlayer(Actor *player, World *world, float dt) {
         player->animation = getAnimation(character_idle_right);
     }
     else if (keyDownLeft) {
-        moveX(player, -speed * dt, world, NULL);
+        moveActorX(player, -speed * dt, world, NULL);
         if (player->animation.id != character_run_right) {
             player->animation = getAnimation(character_run_right);
             player->stateTime = 0;
@@ -170,7 +202,7 @@ void updatePlayer(Actor *player, World *world, float dt) {
         player->facing = left;
     }
     else if (keyDownRight) {
-        moveX(player,  speed * dt, world, NULL);
+        moveActorX(player, speed * dt, world, NULL);
         if (player->animation.id != character_run_right) {
             player->animation = getAnimation(character_run_right);
             player->stateTime = 0;
@@ -180,10 +212,144 @@ void updatePlayer(Actor *player, World *world, float dt) {
 
     // vertical movement
     if (keyDownUp) {
-        moveY(player, -speed * dt, world, NULL);
+        moveActorY(player, -speed * dt, world, NULL);
     }
     else if (keyDownDown) {
-        moveY(player,  speed * dt, world, NULL);
+        moveActorY(player, speed * dt, world, NULL);
+    }
+}
+
+//----------------------------------------------------------------------------------
+// Solid functions
+//----------------------------------------------------------------------------------
+
+void moveSolid(Solid *solid, float x, float y, World *world) {
+    solid->remainder.x += x;
+    solid->remainder.y += y;
+
+    int moveX = round(solid->remainder.x);
+    int moveY = round(solid->remainder.y);
+    if (moveX == 0 && moveY == 0) {
+        return;
+    }
+
+    // loop through every actor to determine which actors are riding the solid
+    ActorPtr *ridingActors = NULL;
+    int numActors = stb_arr_len(world->actors);
+    for (int i = 0; i < numActors; ++i) {
+        Actor *actor = &world->actors[i];
+        if (isRiding(actor, solid)) {
+            stb_arr_push(ridingActors, actor);
+        }
+    }
+
+    // make this solid non-collidable for actors
+    // so actors moved by it do not get stuck on it
+    solid->collidable = false;
+
+    // do x-axis movement
+    if (moveX != 0) {
+        solid->remainder.x -= moveX;
+        solid->bounds.x    += moveX;
+
+        if (moveX > 0) {
+            numActors = stb_arr_len(world->actors);
+            for (int i = 0; i < numActors; ++i) {
+                Actor *actor = &world->actors[i];
+                if (collide(actor->bounds, solid->bounds)) {
+                    // push right
+                    float amount = (solid->bounds.x + solid->bounds.width) - actor->bounds.x;
+                    TraceLog(LOG_DEBUG, "Pushing right by x: %.1f", amount);
+                    moveActorX(actor, amount, world, onCollide_Squish);
+                } else {
+                    // carry right (if riding actor)
+                    int numRidingActors = stb_arr_len(ridingActors);
+                    for (int j = 0; j < numRidingActors; ++j) {
+                        Actor *ridingActor = ridingActors[j];
+                        if (ridingActor == actor) {
+                            moveActorX(actor, moveX, world, NULL);
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            numActors = stb_arr_len(world->actors);
+            for (int i = 0; i < numActors; ++i) {
+                Actor *actor = &world->actors[i];
+                if (collide(actor->bounds, solid->bounds)) {
+                    // push left
+                    float amount = solid->bounds.x - (actor->bounds.x + actor->bounds.width);
+                    moveActorX(actor, amount, world, onCollide_Squish);
+                } else {
+                    // carry left (if riding actor)
+                    int numRidingActors = stb_arr_len(ridingActors);
+                    for (int j = 0; j < numRidingActors; ++j) {
+                        Actor *ridingActor = ridingActors[j];
+                        if (ridingActor == actor) {
+                            moveActorX(actor, moveX, world, NULL);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // do y-axis movement
+    if (moveY != 0) {
+        solid->remainder.y -= moveY;
+        solid->bounds.y    += moveY;
+
+        if (moveY > 0) {
+            numActors = stb_arr_len(world->actors);
+            for (int i = 0; i < numActors; ++i) {
+                Actor *actor = &world->actors[i];
+                if (collide(actor->bounds, solid->bounds)) {
+                    // push up
+                    float amount = (actor->bounds.y + actor->bounds.height) - solid->bounds.y;
+                    moveActorY(actor, amount, world, onCollide_Squish);
+                } else {
+                    // carry up (if riding actor)
+                    int numRidingActors = stb_arr_len(ridingActors);
+                    for (int j = 0; j < numRidingActors; ++j) {
+                        Actor *ridingActor = ridingActors[j];
+                        if (ridingActor == actor) {
+                            moveActorY(actor, moveY, world, NULL);
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            numActors = stb_arr_len(world->actors);
+            for (int i = 0; i < numActors; ++i) {
+                Actor *actor = &world->actors[i];
+                if (collide(actor->bounds, solid->bounds)) {
+                    // push down
+                    float amount = actor->bounds.y - (solid->bounds.y + solid->bounds.width);
+                    moveActorX(actor, amount, world, onCollide_Squish);
+                } else {
+                    // carry down (if riding actor)
+                    int numRidingActors = stb_arr_len(ridingActors);
+                    for (int j = 0; j < numRidingActors; ++j) {
+                        Actor *ridingActor = ridingActors[j];
+                        if (ridingActor == actor) {
+                            moveActorY(actor, moveX, world, NULL);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // re-enable collisions for this solid
+    solid->collidable = true;
+
+    // clear out temp riding actors array
+    if (ridingActors != NULL) {
+        stb_arr_free(ridingActors);
     }
 }
 

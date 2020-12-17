@@ -42,7 +42,7 @@ typedef struct Game {
     GameScreen currentScreen;
     Camera2D camera;
     World world;
-    Actor player;
+    ActorPtr player;
 } Game;
 
 //----------------------------------------------------------------------------------
@@ -115,12 +115,9 @@ void Initialize() {
 
     initializeWorld(&game.world);
 
-    game.player.bounds = (Rectangle) {200, -32, 32, 32 };
-    game.player.center = getCenter(game.player.bounds);
-    game.player.animation = getAnimation(character_idle_right);
-    game.player.facing = right;
+    game.player = &game.world.actors[0];
 
-    game.camera.target = game.player.center;
+    game.camera.target = game.player->center;
     game.camera.offset = (Vector2) { game.window.width / 2, game.window.height / 2 };
     game.camera.rotation = 0;
     game.camera.zoom = 1;
@@ -154,8 +151,21 @@ void Update() {
                 sprintf(gamepadName, "%s", GetGamepadName(GAMEPAD_PLAYER1));
             }
 
-            updatePlayer(&game.player, &game.world, dt);
-            updateCamera(game.player.center, dt);
+            // test moving solids
+            static float sign = 1;
+            float speed = 50;
+            Solid *movingSolid = &game.world.solids[0];
+            moveSolid(movingSolid, sign * speed * dt, 0, &game.world);
+            if (movingSolid->bounds.x < solidMinX) {
+                movingSolid->bounds.x = solidMinX;
+                sign *= -1;
+            } else if (movingSolid->bounds.x + movingSolid->bounds.width > solidMaxX) {
+                movingSolid->bounds.x = solidMaxX - movingSolid->bounds.width;
+                sign *= -1;
+            }
+
+            updatePlayer(game.player, &game.world, dt);
+            updateCamera(game.player->center, dt);
 
             // Press enter to change to EDITING screen
             if (IsKeyPressed(KEY_ENTER)) // || IsGestureDetected(GESTURE_TAP))
@@ -165,7 +175,6 @@ void Update() {
         } break;
         case EDITING:
         {
-            // Press enter to return to TITLE screen
             if (IsKeyPressed(KEY_ENTER)) // || IsGestureDetected(GESTURE_TAP))
             {
                 game.currentScreen = TITLE;
@@ -231,10 +240,10 @@ void Draw() {
                     DrawRectangle(solid.bounds.x, solid.bounds.y, solid.bounds.width, solid.bounds.height, BROWN);
                 }
 
-                int hFlip = (game.player.facing == left) ? -1 : 1;
-                Texture2D texture = getAnimationFrame(&game.player.animation, game.player.stateTime);
+                int hFlip = (game.player->facing == left) ? -1 : 1;
+                Texture2D texture = getAnimationFrame(&game.player->animation, game.player->stateTime);
                 Rectangle srcRect = { 0, 0, hFlip * texture.width, texture.height };
-                Rectangle dstRect = game.player.bounds;
+                Rectangle dstRect = game.player->bounds;
                 Vector2 origin = {0};
                 float rotation = 0;
                 DrawTexturePro(texture, srcRect, dstRect, origin, rotation, WHITE);
@@ -250,7 +259,6 @@ void Draw() {
                         100
                 };
                 if (GuiWindowBox(panel, "Gameplay Screen")) {
-                    printf("Clicked window box\n");
                     game.ui.show = false;
                 }
 
