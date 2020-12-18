@@ -54,11 +54,13 @@ Vector2 getCenter(Rectangle rect) {
 
 static int solidMinX = 20;
 static int solidMaxX = 480;
+static int solidMinY = -100;
+static int solidMaxY = 0;
 
 void initializeWorld(World *world) {
     (*world) = (World) {0};
 
-    Solid movingSolid = ((Solid) {(Rectangle) {solidMinX, -85, 50, 30 }, Vector2Zero(), true });
+    Solid movingSolid = ((Solid) {(Rectangle) {solidMinX, solidMinY, 20, 20 }, Vector2Zero(), true });
     stb_arr_push(world->solids, movingSolid);
 
     // TODO: add a gameplay screen where you can click & drag to create solids (on an integer grid)
@@ -306,11 +308,11 @@ void moveSolid(Solid *solid, float x, float y, World *world) {
             for (int i = 0; i < numActors; ++i) {
                 Actor *actor = &world->actors[i];
                 if (collide(actor->bounds, solid->bounds)) {
-                    // push up
-                    float amount = (actor->bounds.y + actor->bounds.height) - solid->bounds.y;
+                    // push down
+                    float amount = (solid->bounds.y + solid->bounds.height) - actor->bounds.y;
                     moveActorY(actor, amount, world, onCollide_Squish);
                 } else {
-                    // carry up (if riding actor)
+                    // carry down (if riding actor)
                     int numRidingActors = stb_arr_len(ridingActors);
                     for (int j = 0; j < numRidingActors; ++j) {
                         Actor *ridingActor = ridingActors[j];
@@ -326,16 +328,16 @@ void moveSolid(Solid *solid, float x, float y, World *world) {
             for (int i = 0; i < numActors; ++i) {
                 Actor *actor = &world->actors[i];
                 if (collide(actor->bounds, solid->bounds)) {
-                    // push down
-                    float amount = actor->bounds.y - (solid->bounds.y + solid->bounds.width);
-                    moveActorX(actor, amount, world, onCollide_Squish);
+                    // push up
+                    float amount = solid->bounds.y - (actor->bounds.y + actor->bounds.height);
+                    moveActorY(actor, amount, world, onCollide_Squish);
                 } else {
-                    // carry down (if riding actor)
+                    // carry up (if riding actor)
                     int numRidingActors = stb_arr_len(ridingActors);
                     for (int j = 0; j < numRidingActors; ++j) {
                         Actor *ridingActor = ridingActors[j];
                         if (ridingActor == actor) {
-                            moveActorY(actor, moveX, world, NULL);
+                            moveActorY(actor, moveY, world, NULL);
                             break;
                         }
                     }

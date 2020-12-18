@@ -151,18 +151,30 @@ void Update() {
                 sprintf(gamepadName, "%s", GetGamepadName(GAMEPAD_PLAYER1));
             }
 
-            // test moving solids
-            static float sign = 1;
+            // test moving solids --------------------------------------------------------
+            static float signX = 1;
+            static float signY = 1;
             float speed = 50;
             Solid *movingSolid = &game.world.solids[0];
-            moveSolid(movingSolid, sign * speed * dt, 0, &game.world);
+            // move on X
+            moveSolid(movingSolid, signX * speed * dt, 0, &game.world);
             if (movingSolid->bounds.x < solidMinX) {
                 movingSolid->bounds.x = solidMinX;
-                sign *= -1;
+                signX *= -1;
             } else if (movingSolid->bounds.x + movingSolid->bounds.width > solidMaxX) {
                 movingSolid->bounds.x = solidMaxX - movingSolid->bounds.width;
-                sign *= -1;
+                signX *= -1;
             }
+            // move on Y
+            moveSolid(movingSolid, 0, signY * speed * dt, &game.world);
+            if (movingSolid->bounds.y < solidMinY) {
+                movingSolid->bounds.y = solidMinY;
+                signY *= -1;
+            } else if (movingSolid->bounds.y + movingSolid->bounds.height > solidMaxY) {
+                movingSolid->bounds.y = solidMaxY - movingSolid->bounds.height;
+                signY *= -1;
+            }
+            // test moving solids --------------------------------------------------------
 
             updatePlayer(game.player, &game.world, dt);
             updateCamera(game.player->center, dt);
