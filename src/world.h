@@ -17,6 +17,7 @@ typedef struct Solid {
 
 typedef enum Facing { left, right } Facing;
 
+// TODO: separate out renderBounds from collisionBounds
 typedef struct Actor {
     Rectangle bounds;
     Vector2 center;

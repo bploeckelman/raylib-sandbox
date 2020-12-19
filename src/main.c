@@ -15,6 +15,10 @@
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
 
+typedef struct DebugFlags {
+    bool drawActorBounds;
+} DebugFlags;
+
 typedef enum GameScreen { LOGO = 0, TITLE, GAMEPLAY, EDITING } GameScreen;
 
 typedef struct Window {
@@ -49,9 +53,12 @@ typedef struct Game {
 // Globals
 //----------------------------------------------------------------------------------
 
+static DebugFlags debugFlags = {
+        .drawActorBounds = true
+};
+
 static Game game = {0};
 
-char textBuffer[1000] = {0};
 char gamepadName[1000] = {0};
 
 //----------------------------------------------------------------------------------
@@ -252,13 +259,20 @@ void Draw() {
                     DrawRectangle(solid.bounds.x, solid.bounds.y, solid.bounds.width, solid.bounds.height, BROWN);
                 }
 
-                int hFlip = (game.player->facing == left) ? -1 : 1;
-                Texture2D texture = getAnimationFrame(&game.player->animation, game.player->stateTime);
-                Rectangle srcRect = { 0, 0, hFlip * texture.width, texture.height };
-                Rectangle dstRect = game.player->bounds;
-                Vector2 origin = {0};
-                float rotation = 0;
-                DrawTexturePro(texture, srcRect, dstRect, origin, rotation, WHITE);
+                // TODO: encapsulate this block in an updateActor() function
+                {
+                    int hFlip = (game.player->facing == left) ? -1 : 1;
+                    Texture2D texture = getAnimationFrame(&game.player->animation, game.player->stateTime);
+                    Rectangle srcRect = {0, 0, hFlip * texture.width, texture.height};
+                    Rectangle dstRect = game.player->bounds;
+                    Vector2 origin = {0};
+                    float rotation = 0;
+                    DrawTexturePro(texture, srcRect, dstRect, origin, rotation, WHITE);
+
+                    if (debugFlags.drawActorBounds) {
+                        DrawRectangleLinesEx(dstRect, 2, MAGENTA);
+                    }
+                }
             }
             EndMode2D();
 
