@@ -17,9 +17,9 @@ typedef struct Solid {
 
 typedef enum Facing { left, right } Facing;
 
-// TODO: separate out renderBounds from collisionBounds
 typedef struct Actor {
     Rectangle bounds;
+    Rectangle hitbox;
     Vector2 center;
     Vector2 remainder;
     Vector2 speed;
@@ -64,17 +64,25 @@ void initializeWorld(World *world) {
     Solid movingSolid = ((Solid) {(Rectangle) {solidMinX, solidMinY, 20, 20 }, Vector2Zero(), true });
     stb_arr_push(world->solids, movingSolid);
 
-    // TODO: add a gameplay screen where you can click & drag to create solids (on an integer grid)
-    //       then save solids out to a file format and change this to load from file
+    // TODO: add ability to save solids created in editing mode out to a file format and change this to load from file
     stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0,    0, 500,  20 }, Vector2Zero(), true }));
     stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0, -100,  20, 100 }, Vector2Zero(), true }));
     stb_arr_push(world->solids, ((Solid) { (Rectangle) { 480, -100,  20, 100 }, Vector2Zero(), true }));
     stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0, -120, 500,  20 }, Vector2Zero(), true }));
 
     Rectangle playerInitialBounds = {200, -32, 32, 32 };
+    Vector2 playerCenter = getCenter(playerInitialBounds);
+    int hitWidth = playerInitialBounds.width - 16;
+    int hitHeight = playerInitialBounds.height - 8;
+    Rectangle playerHitbox = {
+            playerCenter.x - hitWidth / 2,
+            playerInitialBounds.y + 8,
+            hitWidth, hitHeight
+    };
     Actor player = (Actor) {
             .bounds = playerInitialBounds,
-            .center = getCenter(playerInitialBounds),
+            .hitbox = playerHitbox,
+            .center = playerCenter,
             .remainder = Vector2Zero(),
             .speed = Vector2Zero(),
             .animation = getAnimation(character_idle_right),
@@ -116,7 +124,7 @@ bool isRiding(Actor *actor, Solid *solid) {
 }
 
 void onCollide_Squish(Actor *actor) {
-    // TODO:
+    // TODO: this kills the actor
     TraceLog(LOG_INFO, "squished actor");
 }
 
@@ -132,8 +140,13 @@ void moveActorX(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) 
     actor->remainder.x -= move;
     int moveSign = sign(move);
     while (move != 0) {
-        Rectangle nextStepBounds = {actor->bounds.x + moveSign, actor->bounds.y, actor->bounds.width, actor->bounds.height };
-        if (collidesWithSolids(world, nextStepBounds)) {
+        Rectangle nextStepHitbox = {
+                actor->hitbox.x + moveSign,
+                actor->hitbox.y,
+                actor->hitbox.width,
+                actor->hitbox.height
+        };
+        if (collidesWithSolids(world, nextStepHitbox)) {
             // hit a solid, don't take the next step and trigger the collide callback
             if (onCollide != NULL) {
                 onCollide(actor);
@@ -142,6 +155,7 @@ void moveActorX(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) 
         } else {
             // no solid in the way, take the next step
             actor->bounds.x += moveSign;
+            actor->hitbox.x += moveSign;
             actor->center = getCenter(actor->bounds);
             move -= moveSign;
         }
@@ -157,10 +171,10 @@ void moveActorY(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) 
     int moveSign = sign(move);
     while (move != 0) {
         Rectangle nextStepBounds = {
-                actor->bounds.x,
-                actor->bounds.y + moveSign,
-                actor->bounds.width,
-                actor->bounds.height
+                actor->hitbox.x,
+                actor->hitbox.y + moveSign,
+                actor->hitbox.width,
+                actor->hitbox.height
         };
         if (collidesWithSolids(world, nextStepBounds)) {
             // hit a solid, don't take the next step and trigger the collide callback
@@ -171,6 +185,7 @@ void moveActorY(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) 
         } else {
             // no solid in the way, take the next step
             actor->bounds.y += moveSign;
+            actor->hitbox.y += moveSign;
             actor->center = getCenter(actor->bounds);
             move -= moveSign;
         }
@@ -259,9 +274,9 @@ void moveSolid(Solid *solid, float x, float y, World *world) {
             numActors = stb_arr_len(world->actors);
             for (int i = 0; i < numActors; ++i) {
                 Actor *actor = &world->actors[i];
-                if (collide(actor->bounds, solid->bounds)) {
+                if (collide(actor->hitbox, solid->bounds)) {
                     // push right
-                    float amount = (solid->bounds.x + solid->bounds.width) - actor->bounds.x;
+                    float amount = (solid->bounds.x + solid->bounds.width) - actor->hitbox.x;
                     TraceLog(LOG_DEBUG, "Pushing right by x: %.1f", amount);
                     moveActorX(actor, amount, world, onCollide_Squish);
                 } else {
@@ -280,9 +295,9 @@ void moveSolid(Solid *solid, float x, float y, World *world) {
             numActors = stb_arr_len(world->actors);
             for (int i = 0; i < numActors; ++i) {
                 Actor *actor = &world->actors[i];
-                if (collide(actor->bounds, solid->bounds)) {
+                if (collide(actor->hitbox, solid->bounds)) {
                     // push left
-                    float amount = solid->bounds.x - (actor->bounds.x + actor->bounds.width);
+                    float amount = solid->bounds.x - (actor->hitbox.x + actor->hitbox.width);
                     moveActorX(actor, amount, world, onCollide_Squish);
                 } else {
                     // carry left (if riding actor)
@@ -308,9 +323,9 @@ void moveSolid(Solid *solid, float x, float y, World *world) {
             numActors = stb_arr_len(world->actors);
             for (int i = 0; i < numActors; ++i) {
                 Actor *actor = &world->actors[i];
-                if (collide(actor->bounds, solid->bounds)) {
+                if (collide(actor->hitbox, solid->bounds)) {
                     // push down
-                    float amount = (solid->bounds.y + solid->bounds.height) - actor->bounds.y;
+                    float amount = (solid->bounds.y + solid->bounds.height) - actor->hitbox.y;
                     moveActorY(actor, amount, world, onCollide_Squish);
                 } else {
                     // carry down (if riding actor)
@@ -328,9 +343,9 @@ void moveSolid(Solid *solid, float x, float y, World *world) {
             numActors = stb_arr_len(world->actors);
             for (int i = 0; i < numActors; ++i) {
                 Actor *actor = &world->actors[i];
-                if (collide(actor->bounds, solid->bounds)) {
+                if (collide(actor->hitbox, solid->bounds)) {
                     // push up
-                    float amount = solid->bounds.y - (actor->bounds.y + actor->bounds.height);
+                    float amount = solid->bounds.y - (actor->hitbox.y + actor->hitbox.height);
                     moveActorY(actor, amount, world, onCollide_Squish);
                 } else {
                     // carry up (if riding actor)

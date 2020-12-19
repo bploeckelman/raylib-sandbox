@@ -54,7 +54,7 @@ typedef struct Game {
 //----------------------------------------------------------------------------------
 
 static DebugFlags debugFlags = {
-        .drawActorBounds = true
+        .drawActorBounds = false
 };
 
 static Game game = {0};
@@ -270,7 +270,9 @@ void Draw() {
                     DrawTexturePro(texture, srcRect, dstRect, origin, rotation, WHITE);
 
                     if (debugFlags.drawActorBounds) {
-                        DrawRectangleLinesEx(dstRect, 2, MAGENTA);
+                        DrawCircle(game.player->center.x, game.player->center.y, 3, RED);
+                        DrawRectangleLinesEx(dstRect, 1, LIME);
+                        DrawRectangleLinesEx(game.player->hitbox, 2, MAGENTA);
                     }
                 }
             }
