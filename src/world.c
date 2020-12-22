@@ -101,7 +101,7 @@ void onCollide_Squish(Actor *actor) {
 
 void moveActorX(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) {
     actor->remainder.x += amount;
-    int move = round(actor->remainder.x);
+    int move = rint(actor->remainder.x);
     if (move == 0) return;
 
     actor->remainder.x -= move;
@@ -131,7 +131,7 @@ void moveActorX(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) 
 
 void moveActorY(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) {
     actor->remainder.y += amount;
-    int move = round(actor->remainder.y);
+    int move = rint(actor->remainder.y);
     if (move == 0) return;
 
     actor->remainder.y -= move;
@@ -217,8 +217,8 @@ void moveSolid(Solid *solid, float x, float y, World *world) {
     solid->remainder.x += x;
     solid->remainder.y += y;
 
-    int moveX = round(solid->remainder.x);
-    int moveY = round(solid->remainder.y);
+    int moveX = rint(solid->remainder.x);
+    int moveY = rint(solid->remainder.y);
     if (moveX == 0 && moveY == 0) {
         return;
     }
