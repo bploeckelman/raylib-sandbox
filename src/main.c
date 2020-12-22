@@ -158,6 +158,9 @@ void Update() {
                 sprintf(gamepadName, "%s", GetGamepadName(GAMEPAD_PLAYER1));
             }
 
+            float scrollSpeed = 0.1;
+            game.camera.zoom += (GetMouseWheelMove() * scrollSpeed);
+
             // test moving solids --------------------------------------------------------
             static float signX = 1;
             static float signY = 1;
