@@ -24,18 +24,51 @@ Vector2 getCenter(Rectangle rect) {
 void initializeWorld(World *world) {
     (*world) = (World) {0};
 
-    Solid movingSolid = {
-        .bounds = { solidMinX, solidMinY, 20, 20 },
-        .remainder = Vector2Zero(),
-        .collidable = true
-    };
-    stb_arr_push(world->solids, movingSolid);
+    const char *levelFilename = "level.txt";
+    if (!FileExists(levelFilename)) {
+        TraceLog(LOG_INFO, "Failed to load any level data from '%s', falling back to default level", levelFilename);
+        Solid movingSolid = {
+                .bounds = { solidMinX, solidMinY, 20, 20 },
+                .remainder = Vector2Zero(),
+                .collidable = true
+        };
+        stb_arr_push(world->solids, movingSolid);
 
-    // TODO: add ability to save solids created in editing mode out to a file format and change this to load from file
-    stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0,    0, 500,  20 }, Vector2Zero(), true }));
-    stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0, -100,  20, 100 }, Vector2Zero(), true }));
-    stb_arr_push(world->solids, ((Solid) { (Rectangle) { 480, -100,  20, 100 }, Vector2Zero(), true }));
-    stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0, -120, 500,  20 }, Vector2Zero(), true }));
+        // TODO: add ability to save solids created in editing mode out to a file format and change this to load from file
+        stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0,    0, 500,  20 }, Vector2Zero(), true }));
+        stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0, -100,  20, 100 }, Vector2Zero(), true }));
+        stb_arr_push(world->solids, ((Solid) { (Rectangle) { 480, -100,  20, 100 }, Vector2Zero(), true }));
+        stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0, -120, 500,  20 }, Vector2Zero(), true }));
+    } else {
+        // fetch level data from file
+        const char *levelData = LoadFileText(levelFilename);
+
+        // make a copy of the level data for tokenizing
+        int levelDataLength = strlen(levelData);
+        char *data = calloc(levelDataLength, sizeof(char));
+        strcpy(data, levelData);
+
+        // tokenize the level data
+        char *delim = "\n";
+        char *line = strtok(data, delim);
+        while (line != NULL) {
+            // read the full line, build a solid
+            int x, y, w, h, c;
+            sscanf_s(line, "%d %d %d %d %d", &x, &y, &w, &h, &c);
+            Solid solid = {
+                    .bounds = {x, y, w, h},
+                    .remainder = Vector2Zero(),
+                    .collidable = (bool) c
+            };
+            stb_arr_push(world->solids, solid);
+
+            // read the next line
+            line = strtok(NULL, delim);
+        }
+        TraceLog(LOG_INFO, "Loaded level data from '%s'", levelFilename);
+        // freeing data crashes the program for some reason
+//        free(data);
+    }
 
     Rectangle playerInitialBounds = {200, -32, 32, 32 };
     Vector2 playerCenter = getCenter(playerInitialBounds);

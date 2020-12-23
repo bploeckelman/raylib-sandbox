@@ -60,6 +60,7 @@ static DebugFlags debugFlags = {
 static Game game = {0};
 
 char gamepadName[1000] = {0};
+const char *workingDir;
 
 //----------------------------------------------------------------------------------
 // Lifecycle function declarations
@@ -71,6 +72,8 @@ void Draw();
 void Unload();
 
 void updateCamera(Vector2 vector2, float dt);
+
+void saveSolids(Solid *solids);
 
 //----------------------------------------------------------------------------------
 // Main entry point
@@ -92,6 +95,9 @@ int main(void)
 //----------------------------------------------------------------------------------
 
 void Initialize() {
+    workingDir = GetWorkingDirectory();
+    TraceLog(LOG_INFO, "current working dir: %s", workingDir);
+
     game.currentScreen = LOGO;
 
     game.window = (Window) { 800, 450, "raylib template - simple game" };
@@ -353,6 +359,10 @@ void Draw() {
             DrawRectangle(0, 0, game.window.width, game.window.height, BLUE);
             DrawText("EDITING SCREEN", 20, 20, 40, DARKBLUE);
 
+            if (GuiLabelButton((Rectangle) {20, 100, 100, 30 }, "Save")) {
+                saveSolids(game.world.solids);
+            }
+
             BeginMode2D(game.camera);
             {
                 for (int i = 0; i < stb_arr_len(game.world.solids); ++i) {
@@ -404,6 +414,44 @@ void Draw() {
     }
 
     EndDrawing();
+}
+
+void saveSolids(Solid *solids) {
+    int numSolids = stb_arr_len(solids);
+    int lineSize = 100;
+    char *data = calloc(numSolids * lineSize, sizeof(char));
+    for (int i = 0; i < numSolids; ++i) {
+        Solid solid = solids[i];
+        int x = rint(solid.bounds.x);
+        int y = rint(solid.bounds.y);
+        int w = rint(solid.bounds.width);
+        int h = rint(solid.bounds.height);
+        int c = (int) (solid.collidable);
+
+        int printed;
+        char line[100];
+        printed = sprintf(line, "%d %d %d %d %d\n", x, y, w, h, c);
+
+
+        if (printed < 0) {
+            TraceLog(LOG_INFO, "Failed to write solid data to buffer");
+            return;
+        }
+
+        printed = sprintf(data, "%s%s", data, line);
+        if (printed < 0) {
+            TraceLog(LOG_INFO, "Failed to write solid data to buffer");
+            return;
+        }
+    }
+
+    bool saved = SaveFileText("level.txt", data);
+    if (saved) {
+        TraceLog(LOG_INFO, "Wrote 'level.txt'");
+    } else {
+        TraceLog(LOG_ERROR, "Failed to write 'level.txt'");
+    }
+    free(data);
 }
 
 // ------------------------------------------------------------------
