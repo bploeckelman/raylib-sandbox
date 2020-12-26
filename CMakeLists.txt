@@ -4,7 +4,7 @@ project(raylib_sandbox)
 set(CMAKE_CXX_STANDARD 11)
 
 # if raylib isn't already available on this system, fetch and build it
-find_package(raylib 3.0.0 QUIET)
+find_package(raylib 3.5.0 QUIET)
 if (NOT raylib_FOUND)
     include(FetchContent)
     FetchContent_Declare(
