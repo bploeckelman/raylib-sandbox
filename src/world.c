@@ -120,6 +120,8 @@ bool collidesWithSolids(World *world, Rectangle collider) {
 
 bool isRiding(Actor *actor, Solid *solid) {
     // TODO ....
+    // if grounded and bottom of actor hitbox is contacting top of solid?
+    // TODO: other checks as well if we can ledge or wall grab solids
     return false;
 }
 
@@ -193,7 +195,6 @@ void moveActorY(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) 
 }
 
 void updatePlayer(Actor *player, World *world, float dt) {
-    const float speed = 200;
     player->stateTime += dt;
 
     int gamepad = GAMEPAD_PLAYER1;
@@ -204,20 +205,25 @@ void updatePlayer(Actor *player, World *world, float dt) {
 
     bool keyDownLeft  = IsKeyDown(KEY_A) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_LEFT));
     bool keyDownRight = IsKeyDown(KEY_D) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_RIGHT));
-    bool keyDownUp    = IsKeyDown(KEY_W) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_UP));
-    bool keyDownDown  = IsKeyDown(KEY_S) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_DOWN));
 
+    const float gravity = 80;
+    player->speed.y += gravity * dt;
+
+    // TODO: flags for: isJumping, isGrounded, etc..
+    const float jumpSpeed = -700;
     bool keyDownJump = IsKeyDown(KEY_SPACE) || (gamepadActive && IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_DOWN));
     if (keyDownJump) {
-        TraceLog(LOG_INFO, "Jomped");
+        player->speed.y = jumpSpeed * dt;
     }
 
     // horizontal movement and facing
+    // TODO: flags for running / crawling to modulate speed
+    const float horizontalSpeed = 250;
     if (keyUpLeft && keyUpRight) {
         player->animation = getAnimation(character_idle_right);
     }
     else if (keyDownLeft) {
-        moveActorX(player, -speed * dt, world, NULL);
+        player->speed.x = -horizontalSpeed * dt;
         if (player->animation.id != character_run_right) {
             player->animation = getAnimation(character_run_right);
             player->stateTime = 0;
@@ -225,7 +231,7 @@ void updatePlayer(Actor *player, World *world, float dt) {
         player->facing = left;
     }
     else if (keyDownRight) {
-        moveActorX(player, speed * dt, world, NULL);
+        player->speed.x = horizontalSpeed * dt;
         if (player->animation.id != character_run_right) {
             player->animation = getAnimation(character_run_right);
             player->stateTime = 0;
@@ -233,12 +239,27 @@ void updatePlayer(Actor *player, World *world, float dt) {
         player->facing = right;
     }
 
-    // vertical movement
-    if (keyDownUp) {
-        moveActorY(player, -speed * dt, world, NULL);
+    // perform movement based on current speed
+    if (player->speed.x != 0.f) {
+        moveActorX(player, player->speed.x, world, NULL);
     }
-    else if (keyDownDown) {
-        moveActorY(player, speed * dt, world, NULL);
+    if (player->speed.y != 0.f) {
+        moveActorY(player, player->speed.y, world, NULL);
+    }
+
+    // slow down
+    const float horizontalFriction = 0.75f;
+    const float verticalFriction   = 0.95f;
+    player->speed.x *= horizontalFriction;
+    player->speed.y *= verticalFriction;
+
+    // clamp speeds close to zero
+    const float epsilon = 0.9f;
+    if (fabsf(player->speed.x) < epsilon) {
+        player->speed.x = 0.f;
+    }
+    if (fabsf(player->speed.y) < epsilon) {
+        player->speed.y = 0.f;
     }
 }
 
