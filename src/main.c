@@ -75,6 +75,32 @@ void updateCamera(Vector2 vector2, float dt);
 
 void saveSolids(Solid *solids);
 
+bool isAnyControllerButtonPressed() {
+    int gamepad = GAMEPAD_PLAYER1;
+
+    bool gamepadActive = IsGamepadAvailable(gamepad);
+    if (!gamepadActive) return false;
+
+    return IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_LEFT_FACE_LEFT)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_LEFT_FACE_DOWN)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_LEFT_FACE_RIGHT)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_LEFT_FACE_UP)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_UP)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_LEFT_TRIGGER_1)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_LEFT_TRIGGER_2)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_RIGHT_TRIGGER_1)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_RIGHT_TRIGGER_2)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_LEFT_THUMB)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_RIGHT_THUMB)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_MIDDLE)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_MIDDLE_LEFT)
+        || IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_MIDDLE_RIGHT)
+    ;
+}
+
 //----------------------------------------------------------------------------------
 // Main entry point
 //----------------------------------------------------------------------------------
@@ -156,7 +182,9 @@ void Update() {
         } break;
         case TITLE:
         {
-            // ...
+            if (isAnyControllerButtonPressed()) {
+                game.currentScreen = GAMEPLAY;
+            }
         } break;
         case GAMEPLAY:
         {
