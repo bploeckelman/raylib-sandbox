@@ -210,14 +210,14 @@ void Update() {
                 signX *= -1;
             }
             // move on Y
-            moveSolid(movingSolid, 0, signY * speed * dt, &game.world);
-            if (movingSolid->bounds.y < solidMinY) {
-                movingSolid->bounds.y = solidMinY;
-                signY *= -1;
-            } else if (movingSolid->bounds.y + movingSolid->bounds.height > solidMaxY) {
-                movingSolid->bounds.y = solidMaxY - movingSolid->bounds.height;
-                signY *= -1;
-            }
+//            moveSolid(movingSolid, 0, signY * speed * dt, &game.world);
+//            if (movingSolid->bounds.y < solidMinY) {
+//                movingSolid->bounds.y = solidMinY;
+//                signY *= -1;
+//            } else if (movingSolid->bounds.y + movingSolid->bounds.height > solidMaxY) {
+//                movingSolid->bounds.y = solidMaxY - movingSolid->bounds.height;
+//                signY *= -1;
+//            }
             // test moving solids --------------------------------------------------------
 
             updatePlayer(game.player, &game.world, dt);

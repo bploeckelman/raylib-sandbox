@@ -43,13 +43,9 @@ void initializeWorld(World *world) {
         // fetch level data from file
         const char *levelData = LoadFileText(levelFilename);
 
-        // make a copy of the level data for tokenizing
-        int levelDataLength = strlen(levelData);
-        char *data = calloc(levelDataLength, sizeof(char));
-        strcpy(data, levelData);
-
         // tokenize the level data
-        char *delim = "\n";
+        const char *delim = "\n";
+        char *data = _strdup(levelData);
         char *line = strtok(data, delim);
         while (line != NULL) {
             // read the full line, build a solid
@@ -65,9 +61,8 @@ void initializeWorld(World *world) {
             // read the next line
             line = strtok(NULL, delim);
         }
+        free(data);
         TraceLog(LOG_INFO, "Loaded level data from '%s'", levelFilename);
-        // freeing data crashes the program for some reason
-//        free(data);
     }
 
     Rectangle playerInitialBounds = {200, -32, 32, 32 };
@@ -87,7 +82,8 @@ void initializeWorld(World *world) {
             .speed = Vector2Zero(),
             .animation = getAnimation(character_idle_right),
             .facing = right,
-            .stateTime = 0
+            .stateTime = 0,
+            .grounded = false
     };
     stb_arr_push(world->actors, player);
 }
@@ -107,20 +103,22 @@ bool collide(Rectangle collider1, Rectangle collider2) {
     return CheckCollisionRecs(collider1, collider2);
 }
 
-bool collidesWithSolids(World *world, Rectangle collider) {
+Solid *collidesWithSolids(World *world, Rectangle collider) {
     for (int i = 0; i < stb_arr_len(world->solids); ++i) {
         Solid solid = world->solids[i];
         if (!solid.collidable) continue;
         if (collide(solid.bounds, collider)) {
-            return true;
+            return &world->solids[i];
         }
     }
-    return false;
+    return NULL;
 }
 
 bool isRiding(Actor *actor, Solid *solid) {
-    // TODO ....
-    // if grounded and bottom of actor hitbox is contacting top of solid?
+    if (!actor->grounded) return false;
+    if (actor->hitbox.y + actor->hitbox.height == solid->bounds.y) {
+        return true;
+    }
     // TODO: other checks as well if we can ledge or wall grab solids
     return false;
 }
@@ -148,7 +146,8 @@ void moveActorX(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) 
                 actor->hitbox.width,
                 actor->hitbox.height
         };
-        if (collidesWithSolids(world, nextStepHitbox)) {
+        Solid *collisionSolid = collidesWithSolids(world, nextStepHitbox);
+        if (collisionSolid != NULL) {
             // hit a solid, don't take the next step and trigger the collide callback
             if (onCollide != NULL) {
                 onCollide(actor);
@@ -178,10 +177,15 @@ void moveActorY(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) 
                 actor->hitbox.width,
                 actor->hitbox.height
         };
-        if (collidesWithSolids(world, nextStepBounds)) {
+        Solid *collisionSolid = collidesWithSolids(world, nextStepBounds);
+        if (collisionSolid != NULL) {
             // hit a solid, don't take the next step and trigger the collide callback
             if (onCollide != NULL) {
                 onCollide(actor);
+            }
+            // check if this was a 'floor' collision to set the grounded flag
+            if (actor->hitbox.y + actor->hitbox.height == collisionSolid->bounds.y) {
+                actor->grounded = true;
             }
             break;
         } else {
@@ -205,20 +209,23 @@ void updatePlayer(Actor *player, World *world, float dt) {
 
     bool keyDownLeft  = IsKeyDown(KEY_A) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_LEFT));
     bool keyDownRight = IsKeyDown(KEY_D) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_RIGHT));
+    bool keyDownRun   = IsKeyDown(KEY_LEFT_SHIFT) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_RIGHT_TRIGGER_2));
 
-    const float gravity = 80;
+    const float gravity = 60;
     player->speed.y += gravity * dt;
 
     // TODO: flags for: isJumping, isGrounded, etc..
-    const float jumpSpeed = -700;
+    const float jumpSpeed = -800;
     bool keyDownJump = IsKeyDown(KEY_SPACE) || (gamepadActive && IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_DOWN));
-    if (keyDownJump) {
+    if (keyDownJump && player->grounded) {
+        player->grounded = false;
         player->speed.y = jumpSpeed * dt;
     }
 
     // horizontal movement and facing
     // TODO: flags for running / crawling to modulate speed
-    const float horizontalSpeed = 250;
+    const float multiplier = keyDownRun ? 2 : 1;
+    const float horizontalSpeed = 50 * multiplier;
     if (keyUpLeft && keyUpRight) {
         player->animation = getAnimation(character_idle_right);
     }

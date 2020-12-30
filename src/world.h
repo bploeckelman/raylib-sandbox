@@ -27,6 +27,7 @@ typedef struct Actor {
     Animation animation;
     Facing facing;
     float stateTime;
+    bool grounded;
 } Actor, *ActorPtr;
 
 typedef struct World {
@@ -46,7 +47,7 @@ typedef void (*ON_COLLIDE)(Actor *actor);
 
 static int solidMinX = 20;
 static int solidMaxX = 480;
-static int solidMinY = -100;
+static int solidMinY = -50;
 static int solidMaxY = 0;
 
 void initializeWorld(World *world);
