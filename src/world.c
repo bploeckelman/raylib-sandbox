@@ -48,12 +48,12 @@ void initializeWorld(World *world) {
 
         // tokenize the level data
         const char *delim = "\n";
-        char *data = _strdup(levelData);
+        char *data = strdup(levelData);
         char *line = strtok(data, delim);
         while (line != NULL) {
             // read the full line, build a solid
             int x, y, w, h, c;
-            sscanf_s(line, "%d %d %d %d %d", &x, &y, &w, &h, &c);
+            sscanf(line, "%d %d %d %d %d", &x, &y, &w, &h, &c);
             Solid solid = {
                     .bounds = {x, y, w, h},
                     .remainder = Vector2Zero(),
