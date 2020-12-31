@@ -19,7 +19,7 @@ Tilemap *loadTilemap(const char *path) {
     tilemap->tilesetTexture = LoadTexture(tilesetImagePath);
 
     // build Tiles from map data
-    const Vector2 mapOrigin = {0, -20 * 32};
+    const Vector2 mapOrigin = {0, -15 * 32};
     const cute_tiled_tileset_t *tileset = tilemap->map->tilesets;
     const cute_tiled_layer_t *layer = tilemap->map->layers;
     int x = 0, y = 0;
@@ -60,6 +60,10 @@ Tilemap *loadTilemap(const char *path) {
                         tileset->tileheight
                 };
 
+                // TODO: this is a quick hack to make Tiles collidable with the same interface as Solid
+                tile.solid = malloc(1 * sizeof(Solid));
+                (*tile.solid) = (Solid) { tile.dst, {0}, true };
+
                 // save the newly initialized tile
                 stb_arr_push(tilemap->tiles, tile);
             }
@@ -87,7 +91,13 @@ void unloadTilemap(Tilemap *tilemap) {
         // make a copy of the name for logging after the tilemap is freed
         sprintf(name, "%s", tilemap->name);
 
-        stb_arr_free(tilemap->tiles);
+        if (tilemap->tiles != NULL) {
+            for (int i = 0; i < stb_arr_len(tilemap->tiles); ++i) {
+                free(tilemap->tiles[i].solid);
+            }
+            stb_arr_free(tilemap->tiles);
+        }
+
         cute_tiled_free_map(tilemap->map);
         UnloadTexture(tilemap->tilesetTexture);
     }

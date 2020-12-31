@@ -36,10 +36,10 @@ void initializeWorld(World *world) {
         stb_arr_push(world->solids, movingSolid);
 
         // TODO: add ability to save solids created in editing mode out to a file format and change this to load from file
-        stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0,    0, 500,  20 }, Vector2Zero(), true }));
-        stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0, -100,  20, 100 }, Vector2Zero(), true }));
-        stb_arr_push(world->solids, ((Solid) { (Rectangle) { 480, -100,  20, 100 }, Vector2Zero(), true }));
-        stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0, -120, 500,  20 }, Vector2Zero(), true }));
+//        stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0,    0, 500,  20 }, Vector2Zero(), true }));
+//        stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0, -100,  20, 100 }, Vector2Zero(), true }));
+//        stb_arr_push(world->solids, ((Solid) { (Rectangle) { 480, -100,  20, 100 }, Vector2Zero(), true }));
+//        stb_arr_push(world->solids, ((Solid) { (Rectangle) {   0, -120, 500,  20 }, Vector2Zero(), true }));
     } else {
         // fetch level data from file
         const char *levelData = LoadFileText(levelFilename);
@@ -115,6 +115,14 @@ Solid *collidesWithSolids(World *world, Rectangle collider) {
             return &world->solids[i];
         }
     }
+    if (world->tilemap != NULL && world->tilemap->tiles != NULL) {
+        for (int i = 0; i < stb_arr_len(world->tilemap->tiles); ++i) {
+            Tile tile = world->tilemap->tiles[i];
+            if (collide(tile.solid->bounds, collider)) {
+                return tile.solid;
+            }
+        }
+    }
     return NULL;
 }
 
@@ -175,13 +183,13 @@ void moveActorY(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) 
     actor->remainder.y -= move;
     int moveSign = sign(move);
     while (move != 0) {
-        Rectangle nextStepBounds = {
+        Rectangle nextStepHitbox = {
                 actor->hitbox.x,
                 actor->hitbox.y + moveSign,
                 actor->hitbox.width,
                 actor->hitbox.height
         };
-        Solid *collisionSolid = collidesWithSolids(world, nextStepBounds);
+        Solid *collisionSolid = collidesWithSolids(world, nextStepHitbox);
         if (collisionSolid != NULL) {
             // hit a solid, don't take the next step and trigger the collide callback
             if (onCollide != NULL) {
@@ -203,6 +211,12 @@ void moveActorY(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) 
 }
 
 void updatePlayer(Actor *player, World *world, float dt) {
+    const float gravity = 80;
+    const float jumpSpeed = -800;
+    const float runSpeed = 300;
+    const float horizontalFriction = 0.75f;
+    const float verticalFriction   = 1.00f;
+
     player->stateTime += dt;
 
     int gamepad = GAMEPAD_PLAYER1;
@@ -215,11 +229,12 @@ void updatePlayer(Actor *player, World *world, float dt) {
     bool keyDownRight = IsKeyDown(KEY_D) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_RIGHT));
     bool keyDownRun   = IsKeyDown(KEY_LEFT_SHIFT) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_RIGHT_TRIGGER_2));
 
-    const float gravity = 60;
     player->speed.y += gravity * dt;
+    if (player->speed.y >= gravity) {
+        player->speed.y = gravity;
+    }
 
     // TODO: flags for: isJumping, isGrounded, etc..
-    const float jumpSpeed = -800;
     bool keyDownJump = IsKeyDown(KEY_SPACE) || (gamepadActive && IsGamepadButtonPressed(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_DOWN));
     if (keyDownJump && player->grounded) {
         player->grounded = false;
@@ -229,7 +244,7 @@ void updatePlayer(Actor *player, World *world, float dt) {
     // horizontal movement and facing
     // TODO: flags for running / crawling to modulate speed
     const float multiplier = keyDownRun ? 2 : 1;
-    const float horizontalSpeed = 50 * multiplier;
+    const float horizontalSpeed = runSpeed * multiplier;
     if (keyUpLeft && keyUpRight) {
         player->animation = getAnimation(character_idle_right);
     }
@@ -259,8 +274,6 @@ void updatePlayer(Actor *player, World *world, float dt) {
     }
 
     // slow down
-    const float horizontalFriction = 0.75f;
-    const float verticalFriction   = 0.95f;
     player->speed.x *= horizontalFriction;
     player->speed.y *= verticalFriction;
 

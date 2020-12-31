@@ -291,6 +291,14 @@ void Draw() {
 
             BeginMode2D(game.camera);
             {
+                // draw tilemap
+                {
+                    for (int i = 0; i < stb_arr_len(game.world.tilemap->tiles); ++i) {
+                        Tile tile = game.world.tilemap->tiles[i];
+                        DrawTexturePro(game.world.tilemap->tilesetTexture, tile.src, tile.dst, Vector2Zero(), 0, WHITE);
+                    }
+                }
+
                 // draw solids
                 for (int i = 0; i < stb_arr_len(game.world.solids); ++i) {
                     Solid solid = game.world.solids[i];
@@ -312,14 +320,6 @@ void Draw() {
                         DrawCircle(game.player->center.x, game.player->center.y, 3, RED);
                         DrawRectangleLinesEx(dstRect, 1, LIME);
                         DrawRectangleLinesEx(game.player->hitbox, 2, MAGENTA);
-                    }
-                }
-
-                // draw tilemap
-                {
-                    for (int i = 0; i < stb_arr_len(game.world.tilemap->tiles); ++i) {
-                        Tile tile = game.world.tilemap->tiles[i];
-                        DrawTexturePro(game.world.tilemap->tilesetTexture, tile.src, tile.dst, Vector2Zero(), 0, WHITE);
                     }
                 }
             }

@@ -11,15 +11,20 @@
 // Data structures
 //----------------------------------------------------------------------------------
 
-typedef struct Solid {
+typedef struct Solid Solid;
+typedef struct Actor Actor, *ActorPtr;
+typedef struct World World;
+typedef struct Tilemap Tilemap;
+
+struct Solid {
     Rectangle bounds;
     Vector2 remainder;
     bool collidable;
-} Solid;
+};
 
 typedef enum Facing { left, right } Facing;
 
-typedef struct Actor {
+struct Actor {
     Rectangle bounds;
     Rectangle hitbox;
     Vector2 center;
@@ -29,13 +34,13 @@ typedef struct Actor {
     Facing facing;
     float stateTime;
     bool grounded;
-} Actor, *ActorPtr;
+};
 
-typedef struct World {
+struct World {
     Solid *solids;
     Actor *actors;
     Tilemap *tilemap;
-} World;
+};
 
 //----------------------------------------------------------------------------------
 // Utility
