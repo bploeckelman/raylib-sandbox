@@ -2,6 +2,7 @@
 #include <cute_tiled.h>
 
 #include "world.h"
+#include "tilemap.h"
 
 //----------------------------------------------------------------------------------
 // Utility

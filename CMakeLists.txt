@@ -34,6 +34,8 @@ target_include_directories(stb INTERFACE ./lib/stb)
 add_library(cute_tiled INTERFACE)
 target_include_directories(cute_tiled INTERFACE ./lib/cute_tiled)
 
+include_directories(./src)
+
 add_executable(${PROJECT_NAME}
         src/main.c
         src/assets.c
