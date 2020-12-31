@@ -473,7 +473,7 @@ void Draw() {
                         Vector2 draggedEnd = worldPos;
                         // TODO: check for and fixup negative rectangle sizes (if draggedEnd < draggedStart on any axis)
                         Rectangle bounds = { draggedStart.x, draggedStart.y, draggedEnd.x - draggedStart.x, draggedEnd.y - draggedStart.y };
-                        stb_arr_push(game.world.solids, (Solid) { bounds });
+                        stb_arr_push(game.world.solids, ((Solid) { bounds, {0}, true }));
                         TraceLog(LOG_INFO, "Added solid (%.1f, %.1f, %.0f, %.0f)", bounds.x, bounds.y, bounds.width, bounds.height);
                     } else {
                         // TODO: handle selecting an existing solid
