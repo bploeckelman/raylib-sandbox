@@ -1,6 +1,6 @@
-#include "assets.h"
+#include <stb.h>
 
-#include "../lib/stb/stb.h"
+#include "assets.h"
 
 //----------------------------------------------------------------------------------
 // Global variable initializations

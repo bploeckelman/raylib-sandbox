@@ -2,10 +2,10 @@
 #define RAYLIB_SANDBOX_WORLD_H
 
 #include <raylib.h>
-#include "../lib/stb/stb.h"
-#include "../lib/cute_tiled/cute_tiled.h"
+#include <stb.h>
 
 #include "assets.h"
+#include "tilemap.h"
 
 //----------------------------------------------------------------------------------
 // Data structures
@@ -34,13 +34,12 @@ typedef struct Actor {
 typedef struct World {
     Solid *solids;
     Actor *actors;
-    cute_tiled_map_t *map;
-    Texture2D mapTexture;
+    Tilemap *tilemap;
 } World;
 
 //----------------------------------------------------------------------------------
 // Utility
-//----------------------------------------------------------------------------------
+//--struct --------------------------------------------------------------------------------
 
 typedef void (*ON_COLLIDE)(Actor *actor);
 

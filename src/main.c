@@ -1,13 +1,13 @@
-#include "raylib.h"
-#include "raymath.h"
+#include <raylib.h>
+#include <raymath.h>
 
 #define RAYGUI_IMPLEMENTATION
 #define RAYGUI_SUPPORT_RICONS
-#include "../lib/raygui/raygui.h"
+#include <raygui.h>
 #undef RAYGUI_IMPLEMENTATION
 
 #define STB_DEFINE
-#include "../lib/stb/stb.h"
+#include <stb.h>
 
 #include "world.h"
 
@@ -317,8 +317,8 @@ void Draw() {
                 // TODO: handle special tileset properties: flip flags, spacing, margins, rotation, etc...
                 // TODO: handle picking the correct tile texture when using multiple tilesets (based on tileset->firstgid)
                 Vector2 mapOrigin = {0, -20 * 32};
-                cute_tiled_tileset_t *tileset = game.world.map->tilesets;
-                cute_tiled_layer_t *layer = game.world.map->layers;
+                cute_tiled_tileset_t *tileset = game.world.tilemap->map->tilesets;
+                cute_tiled_layer_t *layer = game.world.tilemap->map->layers;
                 int x = 0, y = 0;
                 while (layer) {
                     int *tileGids = layer->data;
@@ -348,7 +348,7 @@ void Draw() {
                                     tileset->tileheight
                             };
 
-                            DrawTexturePro(game.world.mapTexture, src, dst, Vector2Zero(), 0, WHITE);
+                            DrawTexturePro(game.world.tilemap->tilesetTexture, src, dst, Vector2Zero(), 0, WHITE);
                         }
 
                         // move to next tile grid location

@@ -1,6 +1,7 @@
-#pragma once
+#ifndef RAYLIB_SANDBOX_ASSETS_H
+#define RAYLIB_SANDBOX_ASSETS_H
 
-#include "raylib.h"
+#include <raylib.h>
 
 typedef enum AnimID {
       character_idle_right = 0
@@ -39,3 +40,5 @@ void unloadAssets();
 
 Animation getAnimation(AnimID animId);
 Texture2D getAnimationFrame(const Animation *animation, float stateTime);
+
+#endif

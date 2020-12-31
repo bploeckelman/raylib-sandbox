@@ -25,12 +25,21 @@ if (NOT raylib_FOUND)
     endif()
 endif()
 
+add_library(raygui INTERFACE)
+target_include_directories(raygui INTERFACE ./lib/raygui)
+
+add_library(stb INTERFACE)
+target_include_directories(stb INTERFACE ./lib/stb)
+
+add_library(cute_tiled INTERFACE)
+target_include_directories(cute_tiled INTERFACE ./lib/cute_tiled)
+
 add_executable(${PROJECT_NAME}
         src/main.c
         src/assets.c
         src/assets.h
         src/world.c
         src/world.h
-        lib/stb/stb.h
-        lib/cute_tiled/cute_tiled.h)
-target_link_libraries(${PROJECT_NAME} raylib)
+        src/tilemap.c
+        src/tilemap.h)
+target_link_libraries(${PROJECT_NAME} raylib raygui stb cute_tiled)
