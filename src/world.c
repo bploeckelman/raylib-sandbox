@@ -2,6 +2,9 @@
 
 #include "world.h"
 
+#define CUTE_TILED_IMPLEMENTATION
+#include "../lib/cute_tiled/cute_tiled.h"
+
 
 //----------------------------------------------------------------------------------
 // Utility
@@ -86,6 +89,19 @@ void initializeWorld(World *world) {
             .grounded = false
     };
     stb_arr_push(world->actors, player);
+
+    // load Tiled map
+    const char *mapFilename = "../assets/maps/test.json";
+    {
+        world->map = cute_tiled_load_map_from_file(mapFilename, NULL);
+
+        // load Tiled map tileset image texture
+        char tilesetImagePath[200];
+        const char *tilesetImageFilename = world->map->tilesets->image.ptr;
+        sprintf(tilesetImagePath, "../assets/maps/%s", tilesetImageFilename);
+        world->mapTexture = LoadTexture(tilesetImagePath);
+    }
+    TraceLog(LOG_INFO, "TILED: Loaded map '%s'", mapFilename);
 }
 
 void unloadWorld(World *world) {
@@ -95,6 +111,11 @@ void unloadWorld(World *world) {
     }
     if (world->actors != NULL) {
         stb_arr_free(world->actors);
+    }
+    if (world->map != NULL) {
+        cute_tiled_free_map(world->map);
+        UnloadTexture(world->mapTexture);
+        TraceLog(LOG_INFO, "TILED: Unloaded map");
     }
     (*world) = (World) {0};
 }

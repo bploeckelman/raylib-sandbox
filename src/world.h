@@ -3,6 +3,7 @@
 
 #include <raylib.h>
 #include "../lib/stb/stb.h"
+#include "../lib/cute_tiled/cute_tiled.h"
 
 #include "assets.h"
 
@@ -33,6 +34,8 @@ typedef struct Actor {
 typedef struct World {
     Solid *solids;
     Actor *actors;
+    cute_tiled_map_t *map;
+    Texture2D mapTexture;
 } World;
 
 //----------------------------------------------------------------------------------

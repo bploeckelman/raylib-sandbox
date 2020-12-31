@@ -312,6 +312,55 @@ void Draw() {
                         DrawRectangleLinesEx(game.player->hitbox, 2, MAGENTA);
                     }
                 }
+
+                // NOTE: this assumes no fancy flags or tileset properties just to get the map on screen
+                // TODO: handle special tileset properties: flip flags, spacing, margins, rotation, etc...
+                // TODO: handle picking the correct tile texture when using multiple tilesets (based on tileset->firstgid)
+                Vector2 mapOrigin = {0, -20 * 32};
+                cute_tiled_tileset_t *tileset = game.world.map->tilesets;
+                cute_tiled_layer_t *layer = game.world.map->layers;
+                int x = 0, y = 0;
+                while (layer) {
+                    int *tileGids = layer->data;
+                    int tileCount = layer->data_count;
+
+                    for (int i = 0; i < tileCount; ++i) {
+                        int hflip, vflip, dflip;
+                        int tileGid = tileGids[i];
+                        cute_tiled_get_flags(tileGid, &hflip, &vflip, &dflip);
+                        tileGid = cute_tiled_unset_flags(tileGid);
+
+                        int id = tileGid;
+                        if (id != 0) { // gid 0 is empty so skip drawing those
+                            // NOTE: src x,y are zero indexed, whereas tile gids are 1 indexed
+                            int srcX = ((id - 1) % tileset->columns);
+                            int srcY = ((id - 1) / tileset->columns);
+                            Rectangle src = {
+                                    srcX * tileset->tilewidth,
+                                    srcY * tileset->tileheight,
+                                    tileset->tilewidth,
+                                    tileset->tileheight
+                            };
+                            Rectangle dst = {
+                                    mapOrigin.x + x * tileset->tilewidth,
+                                    mapOrigin.y + y * tileset->tileheight,
+                                    tileset->tilewidth,
+                                    tileset->tileheight
+                            };
+
+                            DrawTexturePro(game.world.mapTexture, src, dst, Vector2Zero(), 0, WHITE);
+                        }
+
+                        // move to next tile grid location
+                        x++;
+                        if (x >= layer->width) {
+                            x = 0;
+                            y++;
+                        }
+                    }
+
+                    layer = layer->next;
+                }
             }
             EndMode2D();
 

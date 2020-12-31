@@ -32,5 +32,5 @@ add_executable(${PROJECT_NAME}
         src/world.c
         src/world.h
         lib/stb/stb.h
-        )
+        lib/cute_tiled/cute_tiled.h)
 target_link_libraries(${PROJECT_NAME} raylib)
