@@ -4,6 +4,24 @@
 #include "world.h"
 #include "tilemap.h"
 
+
+ValueSlider gravitySlider = {
+        { 0, 0, 0, 20 },
+        "",
+        "gravity",
+        100,
+        50,
+        300
+};
+ValueSlider jumpSpeedSlider = {
+        { 0, 0, 0, 20 },
+        "",
+        "jump speed",
+        -800,
+        -2000,
+        -100
+};
+
 //----------------------------------------------------------------------------------
 // Utility
 //----------------------------------------------------------------------------------
@@ -211,8 +229,8 @@ void moveActorY(Actor *actor, float amount, World *world, ON_COLLIDE onCollide) 
 }
 
 void updatePlayer(Actor *player, World *world, float dt) {
-    const float gravity = 80;
-    const float jumpSpeed = -800;
+    const float gravity = gravitySlider.value;
+    const float jumpSpeed = jumpSpeedSlider.value;
     const float runSpeed = 300;
     const float horizontalFriction = 0.75f;
     const float verticalFriction   = 1.00f;

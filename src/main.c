@@ -325,6 +325,27 @@ void Draw() {
             }
             EndMode2D();
 
+            // gameplay ui
+            const float margin = 10;
+            Rectangle panel = { margin, margin, 0.25 * game.window.width, 0.33 * game.window.height};
+            GuiWindowBox(panel, "Player constants");
+
+            gravitySlider.bounds = (Rectangle) {
+                    panel.x + margin,
+                    panel.y + margin + gravitySlider.bounds.height,
+                    panel.width - 2 * margin,
+                    gravitySlider.bounds.height
+            };
+            gravitySlider.value = GuiSlider(gravitySlider.bounds, gravitySlider.textLeft, gravitySlider.textRight, gravitySlider.value, gravitySlider.minValue, gravitySlider.maxValue);
+
+            jumpSpeedSlider.bounds = (Rectangle) {
+                    panel.x + margin,
+                    panel.y + margin + jumpSpeedSlider.bounds.height + gravitySlider.bounds.height,
+                    panel.width - 2 * margin,
+                    jumpSpeedSlider.bounds.height
+            };
+            jumpSpeedSlider.value = GuiSlider(jumpSpeedSlider.bounds, jumpSpeedSlider.textLeft, jumpSpeedSlider.textRight, jumpSpeedSlider.value, jumpSpeedSlider.minValue, jumpSpeedSlider.maxValue);
+            /*
             if (game.ui.show) {
                 const float margin = 10;
                 Rectangle panel = {
@@ -389,6 +410,7 @@ void Draw() {
                     game.ui.show = true;
                 }
             }
+            */
         } break;
         case EDITING:
         {

@@ -43,5 +43,5 @@ add_executable(${PROJECT_NAME}
         src/world.c
         src/world.h
         src/tilemap.c
-        src/tilemap.h)
+        src/tilemap.h src/gui_utils.h)
 target_link_libraries(${PROJECT_NAME} raylib raygui stb cute_tiled)

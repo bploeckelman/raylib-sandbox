@@ -6,6 +6,7 @@
 
 #include "assets.h"
 #include "tilemap.h"
+#include "gui_utils.h"
 
 //----------------------------------------------------------------------------------
 // Data structures
@@ -41,6 +42,9 @@ struct World {
     Actor *actors;
     Tilemap *tilemap;
 };
+
+ValueSlider gravitySlider;
+ValueSlider jumpSpeedSlider;
 
 //----------------------------------------------------------------------------------
 // Utility
