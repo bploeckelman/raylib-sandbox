@@ -84,7 +84,14 @@ void initializeWorld(World *world) {
         TraceLog(LOG_INFO, "Loaded level data from '%s'", levelFilename);
     }
 
-    Rectangle playerInitialBounds = {200, -32, 32, 32 };
+    world->tilemap = loadTilemap("../assets/maps/test.json");
+
+    const float playerSize = 64;
+    Rectangle playerInitialBounds = {
+            world->tilemap->spawnPos.x - playerSize / 2,
+            world->tilemap->spawnPos.y + playerSize  / 2,
+           playerSize, playerSize
+    };
     Vector2 playerCenter = getCenter(playerInitialBounds);
     int hitWidth = playerInitialBounds.width - 20;
     int hitHeight = playerInitialBounds.height - 4;
@@ -102,11 +109,11 @@ void initializeWorld(World *world) {
             .animation = getAnimation(character_idle_right),
             .facing = right,
             .stateTime = 0,
-            .grounded = false
+            .grounded = false,
+            .timeSinceLastJump = 0
     };
     stb_arr_push(world->actors, player);
 
-    world->tilemap = loadTilemap("../assets/maps/test.json");
 }
 
 void unloadWorld(World *world) {
@@ -247,6 +254,16 @@ void updatePlayer(Actor *player, World *world, float dt) {
     bool keyDownRight = IsKeyDown(KEY_D) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_RIGHT));
     bool keyDownRun   = IsKeyDown(KEY_LEFT_SHIFT) || (gamepadActive && IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_RIGHT_TRIGGER_2));
 
+    // TODO: try the new approach
+    // TODO: check for jump
+    // TODO: add a check for 'grounded' state at the end of the update (or maybe at start?)
+    //       where we check for bottom collision against 'nearby' solids (so add a broad phase 'get nearby solids' call)
+
+
+    // -------------------------------------------------------------------------------------------
+    // old
+    //*
+
     player->speed.y += gravity * dt;
     if (player->speed.y >= gravity) {
         player->speed.y = gravity;
@@ -303,6 +320,7 @@ void updatePlayer(Actor *player, World *world, float dt) {
     if (fabsf(player->speed.y) < epsilon) {
         player->speed.y = 0.f;
     }
+    //*/
 }
 
 //----------------------------------------------------------------------------------

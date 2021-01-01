@@ -35,6 +35,8 @@ struct Actor {
     Facing facing;
     float stateTime;
     bool grounded;
+    // maybe player only? ------------
+    float timeSinceLastJump;
 };
 
 struct World {

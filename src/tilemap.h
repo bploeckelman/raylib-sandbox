@@ -19,8 +19,9 @@ struct Tile {
 
 struct Tilemap {
     char name[200];
-    cute_tiled_map_t *map;
+    Vector2 spawnPos;
     Texture2D tilesetTexture;
+    cute_tiled_map_t *map;
     Tile *tiles;
 };
 
