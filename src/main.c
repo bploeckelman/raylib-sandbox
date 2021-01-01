@@ -333,7 +333,7 @@ void Draw() {
             gravitySlider.bounds = (Rectangle) {
                     panel.x + margin,
                     panel.y + margin + gravitySlider.bounds.height,
-                    panel.width - 4 * margin,
+                    panel.width - 10 * margin,
                     gravitySlider.bounds.height
             };
             gravitySlider.value = GuiSlider(gravitySlider.bounds, gravitySlider.textLeft, gravitySlider.textRight, gravitySlider.value, gravitySlider.minValue, gravitySlider.maxValue);
@@ -341,10 +341,19 @@ void Draw() {
             jumpSpeedSlider.bounds = (Rectangle) {
                     panel.x + margin,
                     panel.y + margin + jumpSpeedSlider.bounds.height + gravitySlider.bounds.height,
-                    panel.width - 4 * margin,
+                    panel.width - 10 * margin,
                     jumpSpeedSlider.bounds.height
             };
             jumpSpeedSlider.value = GuiSlider(jumpSpeedSlider.bounds, jumpSpeedSlider.textLeft, jumpSpeedSlider.textRight, jumpSpeedSlider.value, jumpSpeedSlider.minValue, jumpSpeedSlider.maxValue);
+
+
+            const float checkSize = jumpSpeedSlider.bounds.height;
+            Rectangle drawBoundsCheck = {
+                    panel.x + margin,
+                    panel.y + margin + checkSize + jumpSpeedSlider.bounds.height + gravitySlider.bounds.height,
+                    checkSize, checkSize
+            };
+            debugFlags.drawActorBounds = GuiCheckBox(drawBoundsCheck, "Draw Player Bounds", debugFlags.drawActorBounds);
             /*
             if (game.ui.show) {
                 const float margin = 10;
