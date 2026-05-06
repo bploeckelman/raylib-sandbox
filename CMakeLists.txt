@@ -31,6 +31,15 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${RUNTIME_DIR}")
 
 set(SOURCES_DIR "${CMAKE_CURRENT_LIST_DIR}/sources")
 
+# -- Shared module: compiled into both game and platform --
+# NOTE: ***DO NOT*** use file-static vars in ${SOURCES_DIR}/shared/ —
+# each consumer gets its own copy. Communicate through GameMemory instead.
+file(GLOB_RECURSE SHARED_SOURCES CONFIGURE_DEPENDS "${SOURCES_DIR}/shared/*.c")
+add_library(shared OBJECT ${SHARED_SOURCES})
+set_target_properties(shared PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(shared PUBLIC "${SOURCES_DIR}")
+target_link_libraries(shared PUBLIC raylib)
+
 # -- Game module: shared library, hot-swappable --
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS "${SOURCES_DIR}/game/*.c")
 add_library(game SHARED ${GAME_SOURCES})
@@ -38,8 +47,7 @@ set_target_properties(game PROPERTIES
         C_VISIBILITY_PRESET hidden          # only GAME_EXPORT symbols escape
         POSITION_INDEPENDENT_CODE ON
 )
-target_include_directories(game PRIVATE "${SOURCES_DIR}")
-target_link_libraries(game PRIVATE raylib)
+target_link_libraries(game PRIVATE shared)
 
 # Default suffixes give us:  Linux libgame.so | Windows game.dll | macOS libgame.dylib
 # platform.c already expects libgame.so / game.dll, so no PREFIX override.
@@ -47,8 +55,7 @@ target_link_libraries(game PRIVATE raylib)
 # -- Platform executable --
 file(GLOB_RECURSE PLATFORM_SOURCES CONFIGURE_DEPENDS "${SOURCES_DIR}/platform/*.c")
 add_executable(${PROJECT_NAME} ${PLATFORM_SOURCES})
-target_include_directories(${PROJECT_NAME} PRIVATE "${SOURCES_DIR}")
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
+target_link_libraries(${PROJECT_NAME} PRIVATE shared)
 
 # Stage raylib.dll next to platform.exe / game.dll on every build.
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

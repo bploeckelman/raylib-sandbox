@@ -1,10 +1,11 @@
-// game.c - compiled as a shared library (game.dll / libgame.so... libgame.dylib for mac?)
+// game.c — compiled as a shared library (game.dll / libgame.so / libgame.dylib).
 // All exported symbols below are looked up by name by the platform layer.
-// This file knows nothing about the main loop, the window, or timing,
-// only how to advance and draw the simulation
+// This file knows nothing about the main loop, the window, or timing —
+// only how to advance and draw the simulation.
 
 #include "game.h"
-#include "../common.h"
+#include "shared/common.h"
+#include "shared/assets.h"
 #include "raylib.h"
 #include "raymath.h"
 
@@ -15,16 +16,10 @@
 #endif
 
 GAME_EXPORT void game_load(GameMemory *m) {
-    // Load assets
-    if (!m->assets_loaded) {
-        m->assets.texTest = LoadTexture("test.png");
-        m->assets_loaded = true;
-    }
-
-    // Initialize game world
     if (!m->initialized) {
         m->world_curr = (GameWorld){ .player_x = 640, .player_y = 360 };
         m->world_prev = m->world_curr;
+        m->tex_test = assets_load_texture(&m->assets, "test.png");
         m->initialized = true;
     }
     // NOTE: Re-bind anything tied to this module's code/.rodata here.
@@ -66,17 +61,21 @@ GAME_EXPORT void game_render(const GameMemory *m, float alpha) {
 
     ClearBackground(RAYWHITE);
 
-    const Texture2D texture = m->assets.texTest;
-    const int texture_x = SCREEN_WIDTH / 2 - texture.width / 2;
-    const int texture_y = SCREEN_HEIGHT / 2 - texture.height / 2;
-    DrawTexture(texture, texture_x, texture_y, WHITE);
+    const Texture2D texture = assets_get_texture(&m->assets, m->tex_test);
+    if (texture.id != 0) {
+        const int texture_x = SCREEN_WIDTH  / 2 - texture.width  / 2;
+        const int texture_y = SCREEN_HEIGHT / 2 - texture.height / 2;
+        DrawTexture(texture, texture_x, texture_y, WHITE);
+    }
 
-    DrawCircle((int) px, (int) py, 24, BLACK);
-    DrawText(TextFormat("tick %llu  fps %d", (unsigned long long) m->world_curr.tick, GetFPS()), 10, 10, 20, DARKGRAY);
+    DrawCircle((int) px, (int) py, 24, MAGENTA);
+    DrawText(TextFormat("fps %d  tick %llu", GetFPS(), (unsigned long long) m->world_curr.tick), 10, 10, 20, DARKGRAY);
 
     EndDrawing();
 }
 
-GAME_EXPORT void game_shutdown(const GameMemory *m) {
-    UnloadTexture(m->assets.texTest);
+GAME_EXPORT void game_shutdown(GameMemory *m) {
+    // Final teardown — release every GPU/audio handle. Called once at exit,
+    // before raylib's GL context is destroyed by CloseWindow().
+    assets_unload_all(&m->assets);
 }

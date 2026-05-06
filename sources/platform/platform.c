@@ -1,8 +1,9 @@
 // platform.c — compiled as the main executable. Owns the window, owns GameMemory,
 // runs the timing loop, gathers input, and dynamically loads the game module.
 
-#include "../game/game.h"
-#include "../common.h"
+#include "game/game.h"
+#include "shared/common.h"
+#include "shared/assets.h"
 #include "raylib.h"
 #include "resource_dir.h"
 
@@ -19,6 +20,7 @@
   #define LIB_SYM(h, n)   ((void*)GetProcAddress((h), (n)))
   #define LIB_FREE(h)     FreeLibrary(h)
   #define GAME_DLL_BUILT  "game.dll"
+  #define GAME_LOADED_FMT "%sgame_loaded_%d.dll"
 #else
   #include <dlfcn.h>
   typedef void *LibHandle;
@@ -26,29 +28,28 @@
   #define LIB_SYM(h, n)   dlsym((h), (n))
   #define LIB_FREE(h)     dlclose(h)
   #define GAME_DLL_BUILT  "./libgame.so"
+  #define GAME_LOADED_FMT "%slibgame_loaded_%d.so"
 #endif
 
-// Absolute paths for the game .dll/.so, needed so lib can still be loaded
-// if the working directory changes due to SearchAndSetResourceDir(...)
+// Resolved at startup so hot-reload still works after SearchAndSetResourceDir changes the working dir
 static char g_dll_built_path[1024];
-static int g_load_counter = 0; // for making a unique name per-load
+static int  g_load_counter = 0;
 
-// Allocated in BSS so it's zero-initialized and at a stable address across reloads.
-// For a real project, VirtualAlloca/mmap at a fixed base so pointers persist
-// even if GameMemory layouts are swapped.
+// In BSS - zero-initialized, stable address across reloads. For a real
+// project, VirtualAlloc/mmap at a fixed base for full pointer stability.
 static GameMemory g_memory;
 
 typedef struct {
     LibHandle handle;
-    GameApi api;
-    long built_mtime; // mtime of GAME_DLL_BUILT at last successful load
-    char loaded_path[1024]; // unique per game lib load to workaround write-lock while library is loaded
+    GameApi   api;
+    long      built_mtime;       // mtime of game lib at last successful load
+    char      loaded_path[1024]; // unique per game lib load (workaround for Win DLL write-lock)
 } GameModule;
 
 static void game_module_unload(GameModule *m) {
     if (m->handle) {
         LIB_FREE(m->handle);
-        if (m->loaded_path[0]) FileRemove(m->loaded_path); // 6.0 added this
+        if (m->loaded_path[0]) FileRemove(m->loaded_path);
     }
     memset(m, 0, sizeof *m);
 }
@@ -58,9 +59,14 @@ static bool game_module_load(GameModule *m) {
 
     const char *app_dir = GetApplicationDirectory();
     snprintf(m->loaded_path, sizeof m->loaded_path,
-        "%sgame_loaded_%d.dll", app_dir, g_load_counter++);
+        GAME_LOADED_FMT, app_dir, g_load_counter++);
 
-    if (!FileCopy(g_dll_built_path, m->loaded_path)) return false;
+    // Suppress raylib log output around this call, it happens
+    // repeatedly while the new game module lib is still building
+    SetTraceLogLevel(LOG_ERROR);
+    bool copied = FileCopy(g_dll_built_path, m->loaded_path);
+    SetTraceLogLevel(LOG_INFO);
+    if (!copied) return false;
 
     m->handle = LIB_LOAD(m->loaded_path);
     if (!m->handle) return false;
@@ -81,8 +87,14 @@ static bool game_module_load(GameModule *m) {
 }
 
 static bool game_module_should_reload(const GameModule *m) {
-    if (!FileExists(g_dll_built_path)) return false; // missing mid-build -> skip
+    if (!FileExists(g_dll_built_path)) return false;
+
+    // Suppress raylib log output around this call, it happens
+    // repeatedly while the new game module lib is still building
+    SetTraceLogLevel(LOG_ERROR);
     long mtime = GetFileModTime(g_dll_built_path);
+    SetTraceLogLevel(LOG_INFO);
+
     return mtime != 0 && mtime != m->built_mtime;
 }
 
@@ -103,23 +115,24 @@ static void gather_input(GameInput *in) {
 int main(void) {
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, WINDOW_TITLE);
-    SetTargetFPS(0); // run as fast as vsync (or uncapped); we do our own pacing
+    SetTargetFPS(0); // run as fast as vsync (or uncapped); state updates are decoupled from rendering
 
     // Persist game lib's absolute path so it can still be found after SearchAndSetResourceDir(...)
     {
         const char *app_dir = GetApplicationDirectory();
-        snprintf(g_dll_built_path,  sizeof g_dll_built_path,  "%s%s", app_dir, GAME_DLL_BUILT);
+        snprintf(g_dll_built_path,  sizeof g_dll_built_path,
+            "%s%s", app_dir, GAME_DLL_BUILT);
     }
 
     SearchAndSetResourceDir("resources");
 
-    GameModule mod = {0};
-    if (!game_module_load(&mod)) {
-        TraceLog(LOG_FATAL, "could not load game module: %s", mod.loaded_path);
+    GameModule game = {0};
+    if (!game_module_load(&game)) {
+        TraceLog(LOG_FATAL, "could not load game module: %s", g_dll_built_path);
         CloseWindow();
         return 1;
     }
-    mod.api.load(&g_memory);
+    game.api.load(&g_memory);
 
     // ----- Gaffer's "Fix Your Timestep" w/interpolation -----
     // https://gafferongames.com/post/fix_your_timestep/
@@ -135,39 +148,44 @@ int main(void) {
         last_time    = now;
         accumulator += frame;
 
-        // Hot reload: cheap mtime check; only acts when the build wrote a new DLL
-        if (game_module_should_reload(&mod)) {
-            GameModule fresh = {0};
-            if (game_module_load(&fresh)) {
+        // Hot reload: load-new-first, then swap, then unload-old.
+        // Old module stays valid until the new one is verified working.
+        if (game_module_should_reload(&game)) {
+            GameModule new_game = {0};
+            if (game_module_load(&new_game)) {
                 // Success: tear down the old module and swap in the new
-                mod.api.unload(&g_memory);
-                game_module_unload(&mod);
-                mod = fresh;
-                mod.api.load(&g_memory);
+                game.api.unload(&g_memory);
+                game_module_unload(&game);
+                game = new_game;
+                game.api.load(&g_memory);
                 TraceLog(LOG_INFO, "game module reloaded");
             }
-            // Failure: file is mid-write or briefly gone. Keep running on the old module;
-            // built_mtime is unchanged so we'll naturally retry next frame instead
+            // Failure: built_mtime unchanged → retry next frame.
         }
 
         GameInput input;
         gather_input(&input);
 
+        // Hot reload: live update of modified assets
+        assets_poll_reload(&g_memory.assets);
+
         // Integrate at fixed dt as many times as the accumulator allows
         while (accumulator >= dt) {
-            mod.api.update(&g_memory, &input, (float)dt);
+            game.api.update(&g_memory, &input, (float)dt);
             accumulator -= dt;
         }
 
         // Remaining accumulator becomes the interpolation factor for rendering
         float alpha = (float)(accumulator / dt);
-        mod.api.render(&g_memory, alpha);
+        game.api.render(&g_memory, alpha);
     }
 
-    mod.api.shutdown(&g_memory);
+    // Order matters: shutdown frees GPU/audio resources via raylib,
+    // requires GL context to still be alive. CloseWindow destroys it.
+    game.api.shutdown(&g_memory);
+    game.api.unload(&g_memory);
+    game_module_unload(&game);
 
-    mod.api.unload(&g_memory);
-    game_module_unload(&mod);
     CloseWindow();
     return 0;
 }
