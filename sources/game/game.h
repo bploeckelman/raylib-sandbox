@@ -3,32 +3,57 @@
 
 #include "shared/assets.h"
 #include "raylib.h"
+#include "flecs.h"
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stddef.h>
+
+// Fixed timestep interpolation is performed on 'render snapshots' from ECS, extracted each fixed step
+typedef struct {
+    Vector2        position;
+    Vector2        scale;
+    float          rotation;
+    TextureHandle  texture;
+    Color          tint;
+    int            layer;
+} RenderInstance;
+
+#define MAX_RENDER_INSTANCES 4096
+
+typedef struct {
+    RenderInstance  instances[MAX_RENDER_INSTANCES];
+    // Stable id per instance, so prev[i] and curr[i] are the same entity.
+    uint64_t        stable_id[MAX_RENDER_INSTANCES];
+    uint32_t        count;
+} RenderSnapshot;
 
 // Snapshot-able simulation state. Two of these live in GameMemory so the
 // renderer can interpolate between the previous and current fixed step.
 // Keep this plain data; no pointers into game.dll, no allocations.
 // Anything that doesn't need per-tick interpolation belongs elsewhere.
 typedef struct {
-    float     player_x, player_y;
-    float     player_vx, player_vy;
-    int       score;
+    // Non-ECS interpolatable state
     uint64_t  tick;
+    Vector2   camera_pos;
+    float     camera_zoom;
+
+    // Non-interpolated, but snapshot-able data included in save state
+    int       score;
+
+    // ECS-derived data, extracted at end of each fixed step
+    RenderSnapshot render;
 } GameWorld;
 
 // Persistent state owned by the platform. Survives hot reloads because the
 // platform never frees it; only the .dll/.so is unloaded and reloaded.
 typedef struct {
-    bool       initialized;
-    Assets     assets;
+    bool         initialized;
+    Assets       assets;
 
-    // Game-wide asset handles set once in game_load,
-    // not simulation state, so they live alongside GameWorld
-    // and aren't snapshots
-    TextureHandle tex_test;
+    ecs_world_t *ecs;          // not included in snapshot, flecs owns its own state
+    ecs_query_t *q_renderable; // build once on first load
+
+    TextureHandle tex_test; // game-wide asset handles set once in game_load
 
     GameWorld  world_prev; // state at start of last fixed step
     GameWorld  world_curr; // state at end   of last fixed step
