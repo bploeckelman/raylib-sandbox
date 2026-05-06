@@ -1,13 +1,17 @@
 #include "shared/ecs_setup.h"
 #include "shared/ecs_components.h"
 
+ECS_COMPONENT_DECLARE(Bounds);
 ECS_COMPONENT_DECLARE(Position);
 ECS_COMPONENT_DECLARE(Velocity);
+ECS_COMPONENT_DECLARE(Collider);
 ECS_COMPONENT_DECLARE(Sprite);
 
 void ecs_setup_register_components(ecs_world_t *world) {
+    ECS_COMPONENT_DEFINE(world, Bounds);
     ECS_COMPONENT_DEFINE(world, Position);
     ECS_COMPONENT_DEFINE(world, Velocity);
+    ECS_COMPONENT_DEFINE(world, Collider);
     ECS_COMPONENT_DEFINE(world, Sprite);
 }
 

@@ -11,6 +11,7 @@
 // Fixed timestep interpolation is performed on 'render snapshots' from ECS, extracted each fixed step
 typedef struct {
     Vector2        position;
+    Vector2        origin;
     Vector2        scale;
     float          rotation;
     TextureHandle  texture;
@@ -53,10 +54,12 @@ typedef struct {
     ecs_world_t *ecs;          // not included in snapshot, flecs owns its own state
     ecs_query_t *q_renderable; // build once on first load
 
-    TextureHandle tex_test; // game-wide asset handles set once in game_load
-
     GameWorld  world_prev; // state at start of last fixed step
     GameWorld  world_curr; // state at end   of last fixed step
+
+    // game-wide asset handles set once in game_load
+    TextureHandle tex_test;
+    TextureHandle tex_grid;
 
     // Memory arena the game can carve up however it wants
     size_t     arena_used;

@@ -4,6 +4,8 @@
 // only how to advance and draw the simulation.
 
 #include "game/game.h"
+
+#include "camera.h"
 #include "game/systems.h"
 #include "shared/common.h"
 #include "shared/assets.h"
@@ -25,20 +27,30 @@ GAME_EXPORT void game_load(GameMemory *m) {
 
     if (!m->initialized) {
         m->world_curr = (GameWorld){
-            .camera_pos = (Vector2){ .x = 0, .y = 0 },
+            .camera_pos = (Vector2){ SCREEN_WIDTH * 0.5f, SCREEN_HEIGHT * 0.5f },
             .camera_zoom = 1.0f,
         };
         m->world_prev = m->world_curr;
         m->tex_test = assets_load_texture(&m->assets, "test.png");
+        m->tex_grid = assets_load_texture(&m->assets, "grid.png");
 
         // First-time spawn - one moving sprite to verify the ECS setup, update/render pipeline
+        const Texture2D tex = assets_get_texture(&m->assets, m->tex_grid);
+        const float cw = 100.0f;
+        const float ch = 100.0f;
+        const float sx = cw / (float)tex.width;
+        const float sy = ch / (float)tex.height;
         const ecs_entity_t e = ecs_new(m->ecs);
-        ecs_set(m->ecs, e, Position, { 100, 300 });
-        ecs_set(m->ecs, e, Velocity, {  60,   0 });
+        ecs_set(m->ecs, e, Position, { SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f });
+        ecs_set(m->ecs, e, Velocity, { 200, 140 });
         ecs_set(m->ecs, e, Sprite, {
-            .texture = m->tex_test,
             .tint = WHITE,
-            .scale = (Vector2){ 1, 1 },
+            .texture = m->tex_grid,
+            .scale = (Vector2){ sx, sy },
+        });
+        ecs_set(m->ecs, e, Collider, {
+            .origin = (Vector2){ 0, 0 },
+            .size   = (Vector2){ cw, ch },
         });
 
         m->initialized = true;
@@ -59,23 +71,29 @@ GAME_EXPORT void game_update(GameMemory *m, const GameInput *in, float dt) {
     m->world_prev = m->world_curr;
     GameWorld *w = &m->world_curr;
 
+    // TODO: camera update will go here, none yet though because it's static
+
+    ecs_singleton_set(m->ecs, Bounds, { camera_world_bounds(w) });
     ecs_progress(m->ecs, dt);
-
-    // examples of non-ecs state that lives in GameWorld directly
-    // update_camera(w, in, dt);
-    // update_screen_shake(w, dt);
-    // update_transitions(w, dt);
-
     extract_render_snapshot(m->ecs, m->q_renderable, &w->render);
 
     w->tick++;
 }
 
 GAME_EXPORT void game_render(const GameMemory *m, float alpha) {
+    const float   cam_zoom = Lerp(m->world_prev.camera_zoom, m->world_curr.camera_zoom, alpha);
+    const Vector2 cam_pos  = (Vector2){
+        Lerp(m->world_prev.camera_pos.x, m->world_curr.camera_pos.x, alpha),
+        Lerp(m->world_prev.camera_pos.y, m->world_curr.camera_pos.y, alpha),
+    };
 
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
+    // Apply 'world' camera transform
+    BeginMode2D(camera_to_raylib(cam_pos, cam_zoom));
+
+    // Draw background texture
     const Texture2D texture = assets_get_texture(&m->assets, m->tex_test);
     if (texture.id != 0) {
         const int texture_x = SCREEN_WIDTH  / 2 - texture.width  / 2;
@@ -83,13 +101,18 @@ GAME_EXPORT void game_render(const GameMemory *m, float alpha) {
         DrawTexture(texture, texture_x, texture_y, WHITE);
     }
 
-    // Interpolate between the two most recent fixed-step renderable
-    // snapshots from the ECS so motion is smooth independent of frame rate.
+    // Interpolate between ECS render snapshots
     const RenderSnapshot *prev = &m->world_prev.render;
     const RenderSnapshot *curr = &m->world_curr.render;
     for (uint32_t i = 0; i < curr->count; i++) {
         const RenderInstance *ci = &curr->instances[i];
         const RenderInstance *pi = NULL;
+
+        // Skip if there's nothing to draw for this component renderr instance
+        const Texture2D tex = assets_get_texture(&m->assets, ci->texture);
+        if (tex.id == 0) continue;
+
+        // Find matching instances between prev and curr based on stable id matches...
         // Linear scan; fine for now, change to hash lookup above ~200 entities
         for (uint32_t j = 0; j < prev->count; j++) {
             if (prev->stable_id[j] == curr->stable_id[i]) {
@@ -97,17 +120,24 @@ GAME_EXPORT void game_render(const GameMemory *m, float alpha) {
                 break;
             }
         }
-        Vector2 pos = pi ? (Vector2) {
+
+        const Vector2 pos = pi ? (Vector2) {
             Lerp(pi->position.x, ci->position.x, alpha),
             Lerp(pi->position.y, ci->position.y, alpha)
         } : ci->position; // newly spawned: snap, don't lerp from garbage
 
-        const Texture2D tex = assets_get_texture(&m->assets, ci->texture);
-        if (tex.id != 0) {
-            DrawTextureEx(tex, pos, ci->rotation, ci->scale.x, ci->tint);
-        }
+        const float dw = (float)tex.width  * ci->scale.x;
+        const float dh = (float)tex.height * ci->scale.y;
+        const Rectangle source = (Rectangle){ 0, 0, (float)tex.width, (float)tex.height };
+        const Rectangle dest   = (Rectangle){ pos.x, pos.y, dw, dh };
+        const Vector2   origin = (Vector2){ -ci->origin.x, -ci->origin.y };
+        DrawTexturePro(tex, source, dest, origin, ci->rotation, ci->tint);
     }
 
+    // End 'world' camera transform
+    EndMode2D();
+
+    // Draw info text in screen space overlay
     DrawText(TextFormat("fps %d | ents %d | tick %llu",
         GetFPS(), curr->count, (unsigned long long) m->world_curr.tick),
         10, 10, 20, DARKGRAY);
