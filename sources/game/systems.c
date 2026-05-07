@@ -3,6 +3,8 @@
 #include "shared/ecs_components.h"
 #include "shared/ecs_setup.h"
 
+#include <math.h>
+
 static void sys_bounce_in_bounds(ecs_iter_t *iter) {
     const Bounds *bounds = ecs_singleton_get(iter->world, Bounds);
     if (!bounds) return;
@@ -30,13 +32,28 @@ static void sys_bounce_in_bounds(ecs_iter_t *iter) {
     }
 }
 
-static void sys_apply_velocity(ecs_iter_t *it) {
-    Position *pos = ecs_field(it, Position, 0);
-    Velocity *vel = ecs_field(it, Velocity, 1);
+static void sys_apply_velocity(ecs_iter_t *iter) {
+    Position *positions  = ecs_field(iter, Position, 0);
+    Velocity *velocities = ecs_field(iter, Velocity, 1);
+    const float dt = iter->delta_time;
 
-    for (int i = 0; i < it->count; i++) {
-        pos[i].x += vel[i].x * it->delta_time;
-        pos[i].y += vel[i].y * it->delta_time;
+    for (int i = 0; i < iter->count; i++) {
+        positions[i].x += velocities[i].x * dt;
+        positions[i].y += velocities[i].y * dt;
+    }
+}
+
+static void sys_scale_return(ecs_iter_t *iter) {
+    Renderable *renderables = ecs_field(iter, Renderable, 0);
+    const float dt = iter->delta_time;
+
+    for (int i = 0; i < iter->count; i++) {
+        Renderable *renderable = &renderables[i];
+        if (renderable->scale_settle_secs <= 0.0f) continue;
+
+        const float ease = 1.0f - exp2f(-dt / renderable->scale_settle_secs);
+        renderable->scale.x += (renderable->scale_default.x - renderable->scale.x) * ease;
+        renderable->scale.y += (renderable->scale_default.y - renderable->scale.y) * ease;
     }
 }
 
@@ -45,36 +62,67 @@ void register_systems(GameMemory *m) {
     ecs_setup_register_components(m->ecs);
 
     ECS_SYSTEM(m->ecs, sys_apply_velocity,   EcsOnUpdate,   Position, Velocity);
+    ECS_SYSTEM(m->ecs, sys_scale_return,     EcsOnUpdate,   Renderable);
     ECS_SYSTEM(m->ecs, sys_bounce_in_bounds, EcsPostUpdate, Position, Velocity, Collider);
 
-    // Build the renderable query once; it's plain data, survives reloads
+    // Build the renderable query once; it's plain data, survives reloads.
     if (!m->q_renderable) {
         m->q_renderable = ecs_query(m->ecs, {
             .terms = {
                 { .id = ecs_id(Position) },
-                { .id = ecs_id(Sprite) },
+                { .id = ecs_id(Renderable) },
+                { .id = ecs_id(TexImage) },
             },
         });
     }
 }
 
-void extract_render_snapshot(ecs_world_t *world, ecs_query_t *q, RenderSnapshot *out) {
+void extract_render_snapshot(const ecs_world_t *world, ecs_query_t *query, const Assets *assets, RenderSnapshot *out) {
     out->count = 0;
-    if (!q) return;
+    if (!query) return;
 
-    ecs_iter_t it = ecs_query_iter(world, q);
+    ecs_iter_t it = ecs_query_iter(world, query);
     while (ecs_query_next(&it)) {
-        Position *pos    = ecs_field(&it, Position, 0);
-        Sprite   *sprite = ecs_field(&it, Sprite,   1);
+        Position   *positions   = ecs_field(&it, Position,   0);
+        Renderable *renderables = ecs_field(&it, Renderable, 1);
+        TexImage   *tex_images  = ecs_field(&it, TexImage,   2);
+
         for (int i = 0; i < it.count && out->count < MAX_RENDER_INSTANCES; i++) {
+            const Renderable *renderable = &renderables[i];
+
+            // Set renderable to texture size if no explicit size is provided
+            Vector2 base_size = renderable->size;
+            if (base_size.x == 0.0f && base_size.y == 0.0f) {
+                const Texture2D source_texture = assets_get_texture(assets, tex_images[i].texture);
+                base_size.x = (float)source_texture.width;
+                base_size.y = (float)source_texture.height;
+            }
+
+            // Apply squash/stretch to renderable, scaling at 'pivot' point rather than default top left
+            const Vector2 scaled_size = (Vector2){
+                base_size.x * renderable->scale.x,
+                base_size.y * renderable->scale.y,
+            };
+            const Vector2 pivot_shift = (Vector2){
+                base_size.x * renderable->scale_pivot.x * (1.0f - renderable->scale.x),
+                base_size.y * renderable->scale_pivot.y * (1.0f - renderable->scale.y),
+            };
+            const Vector2 effective_origin = (Vector2){
+                renderable->origin.x + pivot_shift.x,
+                renderable->origin.y + pivot_shift.y,
+            };
+
+            const Vector2 position = (Vector2){ positions[i].x, positions[i].y };
+
+            // Create render instance for this entity to draw at fixed step
             RenderInstance *inst = &out->instances[out->count];
-            inst->position = (Vector2){ pos[i].x, pos[i].y };
-            inst->origin   = sprite[i].origin;
-            inst->scale    = sprite[i].scale;
-            inst->rotation = sprite[i].rotation;
-            inst->texture  = sprite[i].texture;
-            inst->tint     = sprite[i].tint;
-            inst->layer    = sprite[i].layer;
+            inst->position = position;
+            inst->size     = scaled_size;
+            inst->origin   = effective_origin;
+            inst->rotation = renderable->rotation;
+            inst->tint     = renderable->tint;
+            inst->layer    = renderable->layer;
+            inst->texture  = tex_images[i].texture;
             out->stable_id[out->count] = it.entities[i];
             out->count++;
         }

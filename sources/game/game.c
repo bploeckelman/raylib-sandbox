@@ -35,23 +35,15 @@ GAME_EXPORT void game_load(GameMemory *m) {
         m->tex_grid = assets_load_texture(&m->assets, "grid.png");
 
         // First-time spawn - one moving sprite to verify the ECS setup, update/render pipeline
-        const Texture2D tex = assets_get_texture(&m->assets, m->tex_grid);
-        const float cw = 100.0f;
-        const float ch = 100.0f;
-        const float sx = cw / (float)tex.width;
-        const float sy = ch / (float)tex.height;
+        const float width  = 100.0f;
+        const float height = 100.0f;
         const ecs_entity_t e = ecs_new(m->ecs);
         ecs_set(m->ecs, e, Position, { SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f });
         ecs_set(m->ecs, e, Velocity, { 200, 140 });
-        ecs_set(m->ecs, e, Sprite, {
-            .tint = WHITE,
-            .texture = m->tex_grid,
-            .scale = (Vector2){ sx, sy },
-        });
-        ecs_set(m->ecs, e, Collider, {
-            .origin = (Vector2){ 0, 0 },
-            .size   = (Vector2){ cw, ch },
-        });
+        ecs_set(m->ecs, e, TexImage, { m->tex_grid });
+        ecs_set(m->ecs, e, Renderable, { RENDERABLE_DEFAULTS, .size = (Vector2){ width, height } });
+        ecs_set(m->ecs, e, Collider,   { COLLIDER_DEFAULTS,   .size = (Vector2){ width, height } });
+        m->test_entity = e;
 
         m->initialized = true;
     }
@@ -65,17 +57,23 @@ GAME_EXPORT void game_unload(GameMemory *m) {
     // Do NOT touch GameMemory contents that should survive the reload.
 }
 
-GAME_EXPORT void game_update(GameMemory *m, const GameInput *in, float dt) {
+GAME_EXPORT void game_update(GameMemory *m, const GameInput *input, float dt) {
     // Snapshot the just-finished step before integrating the new one.
     // After this function returns: world_prev = "t", world_curr = "t+dt"
     m->world_prev = m->world_curr;
     GameWorld *w = &m->world_curr;
 
+    // TESTING: squash, stretch
+    if (input->key_space) {
+        Renderable *renderable = ecs_get_mut(m->ecs, m->test_entity, Renderable);
+        renderable->scale = (Vector2){ 1.5f, 1.5f };
+    }
+
     // TODO: camera update will go here, none yet though because it's static
 
     ecs_singleton_set(m->ecs, Bounds, { camera_world_bounds(w) });
     ecs_progress(m->ecs, dt);
-    extract_render_snapshot(m->ecs, m->q_renderable, &w->render);
+    extract_render_snapshot(m->ecs, m->q_renderable, &m->assets, &w->render);
 
     w->tick++;
 }
@@ -126,10 +124,8 @@ GAME_EXPORT void game_render(const GameMemory *m, float alpha) {
             Lerp(pi->position.y, ci->position.y, alpha)
         } : ci->position; // newly spawned: snap, don't lerp from garbage
 
-        const float dw = (float)tex.width  * ci->scale.x;
-        const float dh = (float)tex.height * ci->scale.y;
         const Rectangle source = (Rectangle){ 0, 0, (float)tex.width, (float)tex.height };
-        const Rectangle dest   = (Rectangle){ pos.x, pos.y, dw, dh };
+        const Rectangle dest   = (Rectangle){ pos.x, pos.y, ci->size.x, ci->size.y };
         const Vector2   origin = (Vector2){ -ci->origin.x, -ci->origin.y };
         DrawTexturePro(tex, source, dest, origin, ci->rotation, ci->tint);
     }
