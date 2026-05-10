@@ -101,16 +101,16 @@ static bool game_module_should_reload(const GameModule *m) {
 
 static void gather_input(GameInput *in) {
     *in = (GameInput){0};
-    in->key_left  = IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A);
-    in->key_right = IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
-    in->key_up    = IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W);
-    in->key_down  = IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S);
-    in->key_space = IsKeyDown(KEY_SPACE);
+    in->key_left    = IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A);
+    in->key_right   = IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D);
+    in->key_up      = IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W);
+    in->key_down    = IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S);
+    in->key_space   = IsKeyDown(KEY_SPACE);
     in->mouse_left  = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
     in->mouse_right = IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
-    Vector2 mp  = GetMousePosition();
-    in->mouse_x = mp.x;
-    in->mouse_y = mp.y;
+    const Vector2 mouse_pos = GetMousePosition();
+    in->mouse_x = mouse_pos.x;
+    in->mouse_y = mouse_pos.y;
 }
 
 int main(void) {
@@ -170,7 +170,7 @@ int main(void) {
         gather_input(&input);
 
         // Hot reload: live update of modified assets
-        assets_poll_reload(&g_memory.assets);
+        assets_poll_reload(&g_memory.assets, &g_memory.arena);
 
         // Integrate at fixed dt as many times as the accumulator allows
         while (accumulator >= dt) {

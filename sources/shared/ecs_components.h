@@ -38,14 +38,31 @@ typedef struct {
     int      layer;
 } Renderable;
 
-typedef struct { TextureHandle texture; } TexImage;
-// TODO: Animator
+typedef enum {
+    ANIM_NORMAL = 0,
+    ANIM_REVERSE,
+    ANIM_LOOP,
+    ANIM_LOOP_REVERSE,
+    ANIM_LOOP_PINGPONG
+} AnimMode;
+
+#define ANIMATOR_DEFAULTS .mode = ANIM_NORMAL
+
+typedef struct {
+    AnimMode   mode;
+    uint16_t   frames_count;
+    uint16_t   current_frame;
+    float      frame_seconds;
+    float      state_time;
+    TexRegion *frames;        // arena-owned, lifetime tied to GameMemory
+} Animator;
 
 extern ECS_COMPONENT_DECLARE(Bounds);
 extern ECS_COMPONENT_DECLARE(Position);
 extern ECS_COMPONENT_DECLARE(Velocity);
 extern ECS_COMPONENT_DECLARE(Collider);
 extern ECS_COMPONENT_DECLARE(Renderable);
-extern ECS_COMPONENT_DECLARE(TexImage);
+extern ECS_COMPONENT_DECLARE(TexRegion);
+extern ECS_COMPONENT_DECLARE(Animator);
 
 #endif //ECS_COMPONENTS_H

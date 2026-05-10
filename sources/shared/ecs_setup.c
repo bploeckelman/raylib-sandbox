@@ -6,7 +6,8 @@ ECS_COMPONENT_DECLARE(Position);
 ECS_COMPONENT_DECLARE(Velocity);
 ECS_COMPONENT_DECLARE(Collider);
 ECS_COMPONENT_DECLARE(Renderable);
-ECS_COMPONENT_DECLARE(TexImage);
+ECS_COMPONENT_DECLARE(TexRegion);
+ECS_COMPONENT_DECLARE(Animator);
 
 void ecs_setup_register_components(ecs_world_t *world) {
     ECS_COMPONENT_DEFINE(world, Bounds);
@@ -14,7 +15,8 @@ void ecs_setup_register_components(ecs_world_t *world) {
     ECS_COMPONENT_DEFINE(world, Velocity);
     ECS_COMPONENT_DEFINE(world, Collider);
     ECS_COMPONENT_DEFINE(world, Renderable);
-    ECS_COMPONENT_DEFINE(world, TexImage);
+    ECS_COMPONENT_DEFINE(world, TexRegion);
+    ECS_COMPONENT_DEFINE(world, Animator);
 }
 
 ecs_world_t *ecs_setup_create_world(void) {

@@ -2,6 +2,7 @@
 #define GAME_H
 
 #include "shared/assets.h"
+#include "shared/arena.h"
 #include "raylib.h"
 #include "flecs.h"
 
@@ -16,7 +17,8 @@ typedef struct {
     float          rotation;
     Color          tint;
     int            layer;
-    TextureHandle  texture;
+    TextureHandle  tex_handle;
+    Rectangle      tex_source; // (Rectangle){0,0,0,0} -> full texture, otherwise region
 } RenderInstance;
 
 #define MAX_RENDER_INSTANCES 4096
@@ -50,21 +52,21 @@ typedef struct {
 typedef struct {
     bool         initialized;
     Assets       assets;
+    Arena        arena;
 
     ecs_world_t *ecs;          // not included in snapshot, flecs owns its own state
-    ecs_query_t *q_renderable; // build once on first load
+    ecs_query_t *q_renderable_static;   // build once on first load
+    ecs_query_t *q_renderable_animated; // build once on first load
     ecs_entity_t test_entity;
 
-    GameWorld  world_prev; // state at start of last fixed step
-    GameWorld  world_curr; // state at end   of last fixed step
+    // game world state at start, end of last fixed step
+    GameWorld  world_prev;
+    GameWorld  world_curr;
 
     // game-wide asset handles set once in game_load
+    AtlasHandle   atlas_hero;
     TextureHandle tex_test;
     TextureHandle tex_grid;
-
-    // Memory arena the game can carve up however it wants
-    size_t     arena_used;
-    uint8_t    arena[64 * 1024 * 1024];
 } GameMemory;
 
 // Per-frame input snapshot gathered by the platform

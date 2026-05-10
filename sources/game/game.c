@@ -31,8 +31,10 @@ GAME_EXPORT void game_load(GameMemory *m) {
             .camera_zoom = 1.0f,
         };
         m->world_prev = m->world_curr;
-        m->tex_test = assets_load_texture(&m->assets, "test.png");
-        m->tex_grid = assets_load_texture(&m->assets, "grid.png");
+
+        m->atlas_hero = assets_load_atlas(&m->assets, "atlas.rtpa", &m->arena);
+        m->tex_test   = assets_load_texture(&m->assets, "test.png");
+        m->tex_grid   = assets_load_texture(&m->assets, "grid.png");
 
         // First-time spawn - one moving sprite to verify the ECS setup, update/render pipeline
         const float width  = 100.0f;
@@ -40,9 +42,26 @@ GAME_EXPORT void game_load(GameMemory *m) {
         const ecs_entity_t e = ecs_new(m->ecs);
         ecs_set(m->ecs, e, Position, { SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f });
         ecs_set(m->ecs, e, Velocity, { 200, 140 });
-        ecs_set(m->ecs, e, TexImage, { m->tex_grid });
         ecs_set(m->ecs, e, Renderable, { RENDERABLE_DEFAULTS, .size = (Vector2){ width, height } });
         ecs_set(m->ecs, e, Collider,   { COLLIDER_DEFAULTS,   .size = (Vector2){ width, height } });
+
+        const char      *anim_tag  = "hero-idle";
+        const AtlasSlot *atlas      = assets_get_atlas(&m->assets, m->atlas_hero);
+        const int        num_frames = atlas_num_regions_for_tag(atlas, anim_tag);
+        if (num_frames > 0) {
+            TexRegion *frames = ARENA_NEW_ARRAY(&m->arena, TexRegion, num_frames);
+            const int frames_count = atlas_find_regions_by_tag(atlas, anim_tag, frames, num_frames);
+            if (frames_count != num_frames) {
+                TraceLog(LOG_WARNING, "animator(%s): num frames - expected(%d) != actual(%d)", anim_tag, num_frames, frames_count);
+            }
+            ecs_set(m->ecs, e, Animator, {
+                ANIMATOR_DEFAULTS,
+                .mode          = ANIM_LOOP,
+                .frame_seconds = 0.1f,
+                .frames_count  = frames_count,
+                .frames        = frames
+            });
+        }
         m->test_entity = e;
 
         m->initialized = true;
@@ -57,7 +76,7 @@ GAME_EXPORT void game_unload(GameMemory *m) {
     // Do NOT touch GameMemory contents that should survive the reload.
 }
 
-GAME_EXPORT void game_update(GameMemory *m, const GameInput *input, float dt) {
+GAME_EXPORT void game_update(GameMemory *m, const GameInput *input, const float dt) {
     // Snapshot the just-finished step before integrating the new one.
     // After this function returns: world_prev = "t", world_curr = "t+dt"
     m->world_prev = m->world_curr;
@@ -73,12 +92,12 @@ GAME_EXPORT void game_update(GameMemory *m, const GameInput *input, float dt) {
 
     ecs_singleton_set(m->ecs, Bounds, { camera_world_bounds(w) });
     ecs_progress(m->ecs, dt);
-    extract_render_snapshot(m->ecs, m->q_renderable, &m->assets, &w->render);
+    extract_render_snapshot(m->ecs, m->q_renderable_static, m->q_renderable_animated, &m->assets, &w->render);
 
     w->tick++;
 }
 
-GAME_EXPORT void game_render(const GameMemory *m, float alpha) {
+GAME_EXPORT void game_render(const GameMemory *m, const float alpha) {
     const float   cam_zoom = Lerp(m->world_prev.camera_zoom, m->world_curr.camera_zoom, alpha);
     const Vector2 cam_pos  = (Vector2){
         Lerp(m->world_prev.camera_pos.x, m->world_curr.camera_pos.x, alpha),
@@ -103,31 +122,30 @@ GAME_EXPORT void game_render(const GameMemory *m, float alpha) {
     const RenderSnapshot *prev = &m->world_prev.render;
     const RenderSnapshot *curr = &m->world_curr.render;
     for (uint32_t i = 0; i < curr->count; i++) {
-        const RenderInstance *ci = &curr->instances[i];
-        const RenderInstance *pi = NULL;
+        const RenderInstance *curr_inst = &curr->instances[i];
+        const RenderInstance *prev_inst = NULL;
 
-        // Skip if there's nothing to draw for this component renderr instance
-        const Texture2D tex = assets_get_texture(&m->assets, ci->texture);
-        if (tex.id == 0) continue;
+        // Skip if there's nothing to draw for this component renderer instance
+        const Texture2D texture = assets_get_texture(&m->assets, curr_inst->tex_handle);
+        if (texture.id == 0) continue;
 
         // Find matching instances between prev and curr based on stable id matches...
         // Linear scan; fine for now, change to hash lookup above ~200 entities
         for (uint32_t j = 0; j < prev->count; j++) {
             if (prev->stable_id[j] == curr->stable_id[i]) {
-                pi = &prev->instances[j];
+                prev_inst = &prev->instances[j];
                 break;
             }
         }
 
-        const Vector2 pos = pi ? (Vector2) {
-            Lerp(pi->position.x, ci->position.x, alpha),
-            Lerp(pi->position.y, ci->position.y, alpha)
-        } : ci->position; // newly spawned: snap, don't lerp from garbage
+        const Vector2 pos = prev_inst ? (Vector2) {
+            Lerp(prev_inst->position.x, curr_inst->position.x, alpha),
+            Lerp(prev_inst->position.y, curr_inst->position.y, alpha)
+        } : curr_inst->position; // newly spawned: snap, don't lerp from garbage
 
-        const Rectangle source = (Rectangle){ 0, 0, (float)tex.width, (float)tex.height };
-        const Rectangle dest   = (Rectangle){ pos.x, pos.y, ci->size.x, ci->size.y };
-        const Vector2   origin = (Vector2){ -ci->origin.x, -ci->origin.y };
-        DrawTexturePro(tex, source, dest, origin, ci->rotation, ci->tint);
+        const Rectangle dest   = (Rectangle){ pos.x, pos.y, curr_inst->size.x, curr_inst->size.y };
+        const Vector2   origin = (Vector2){ -curr_inst->origin.x, -curr_inst->origin.y };
+        DrawTexturePro(texture, curr_inst->tex_source, dest, origin, curr_inst->rotation, curr_inst->tint);
     }
 
     // End 'world' camera transform
