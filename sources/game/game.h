@@ -1,10 +1,10 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include "shared/assets.h"
 #include "shared/arena.h"
+#include "shared/assets.h"
+#include "shared/world.h"
 #include "raylib.h"
-#include "flecs.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -45,29 +45,20 @@ typedef struct {
 
     // ECS-derived data, extracted at end of each fixed step
     RenderSnapshot render;
-} GameWorld;
+} WorldSnapshot;
 
 // Persistent state owned by the platform. Survives hot reloads because the
 // platform never frees it; only the .dll/.so is unloaded and reloaded.
 typedef struct {
-    bool         initialized;
-    Assets       assets;
-    Arena        arena;
+    bool          initialized;
+    Assets        assets;
+    Arena         arena;
+    World         world;
+    WorldSnapshot world_prev;
+    WorldSnapshot world_curr;
+    EntityId      test_entity_1;
+    EntityId      test_entity_2;
 
-    ecs_world_t *ecs;          // not included in snapshot, flecs owns its own state
-    ecs_query_t *q_renderable_static;   // build once on first load
-    ecs_query_t *q_renderable_animated; // build once on first load
-    ecs_entity_t test_entity_1;
-    ecs_entity_t test_entity_2;
-
-    // game world state at start, end of last fixed step
-    GameWorld  world_prev;
-    GameWorld  world_curr;
-
-    // game-wide asset handles set once in game_load
-    AtlasHandle   atlas_hero;
-    TextureHandle tex_test;
-    TextureHandle tex_grid;
 } GameMemory;
 
 // Per-frame input snapshot gathered by the platform

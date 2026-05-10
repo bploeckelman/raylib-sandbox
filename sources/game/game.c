@@ -26,7 +26,7 @@ GAME_EXPORT void game_load(GameMemory *m) {
     register_systems(m);
 
     if (!m->initialized) {
-        m->world_curr = (GameWorld){
+        m->world_curr = (WorldSnapshot){
             .camera_pos = (Vector2){ SCREEN_WIDTH * 0.5f, SCREEN_HEIGHT * 0.5f },
             .camera_zoom = 1.0f,
         };
@@ -102,7 +102,7 @@ GAME_EXPORT void game_update(GameMemory *m, const GameInput *input, const float 
     // Snapshot the just-finished step before integrating the new one.
     // After this function returns: world_prev = "t", world_curr = "t+dt"
     m->world_prev = m->world_curr;
-    GameWorld *w = &m->world_curr;
+    WorldSnapshot *w = &m->world_curr;
 
     // TESTING: squash, stretch
     if (input->key_space) {

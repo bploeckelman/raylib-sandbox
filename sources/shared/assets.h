@@ -2,110 +2,78 @@
 #define ASSETS_H
 
 #include "shared/arena.h"
+#include "shared/components.h"
 #include "raylib.h"
 
-#include <stdbool.h>
-#include <stdint.h>
-
 #define ASSETS_MAX_ATLASES    4
-#define ASSETS_MAX_TEXTURES 256
-#define ASSETS_MAX_SOUNDS   128
-#define ASSETS_MAX_FONTS     16
 #define ASSETS_PATH_LENGTH  128
 #define ATLAS_NAME_LENGTH    32
 #define ATLAS_TAG_LENGTH     32
 
-typedef struct { uint16_t slot; uint16_t gen; } AtlasHandle;
+typedef enum {
+    ATLAS_NONE = 0,
+    ATLAS_HERO,
+    ATLAS_COUNT,
+} AtlasId;
 
-typedef struct { uint16_t slot; uint16_t gen; } TextureHandle;
+typedef enum {
+    TEX_NONE = 0,
+    TEX_TEST,
+    TEX_GRID,
+    TEX_ATLAS_HERO,
+    TEX_COUNT,
+} TextureId;
 
-typedef struct { uint16_t slot; uint16_t gen; } SoundHandle;
+typedef enum {
+    SOUND_NONE = 0,
+    // ...
+    SOUND_COUNT,
+} SoundId;
 
-typedef struct { uint16_t slot; uint16_t gen; } FontHandle;
-
-#define ATLAS_HANDLE_NULL   ((AtlasHandle){0,0})
-#define TEXTURE_HANDLE_NULL ((TextureHandle){0,0})
-#define SOUND_HANDLE_NULL   ((SoundHandle){0,0})
-#define FONT_HANDLE_NULL    ((FontHandle){0,0})
-
-#define TEX_REGION_DEFAULTS .source = (Rectangle){0,0,0,0}
-
-typedef struct {
-    TextureHandle  tex_handle;
-    Rectangle      tex_source;  // TEX_REGION_DEFAULTS.source = full texture
-} TexRegion;
+typedef enum {
+    FONT_NONE = 0,
+    // ...
+    FONT_COUNT,
+} FontId;
 
 typedef struct {
     char       name[ATLAS_NAME_LENGTH];
     char       tag [ATLAS_TAG_LENGTH];
-    Rectangle  tex_source;
+    Rectangle  tex_source_rect;
 } AtlasSprite;
 
 typedef struct {
-    char           path[ASSETS_PATH_LENGTH]; // .rtpa path
-    TextureHandle  tex_handle;               // atlas image, from 'a' line
-    AtlasSprite   *sprites;                  // owned by GameMemory Arena
-    int            count;
-    long           mtime;
-    uint16_t       gen;
-    bool           in_use;
-} AtlasSlot;
+    const char  *path;
+    TextureId    tex_id;  // which TextureId is the atlas image
+    AtlasSprite *sprites; // arena-owned
+    int          sprite_count;
+    long         mtime;
+} Atlas;
 
 typedef struct {
-    char       path[ASSETS_PATH_LENGTH];
-    Texture2D  texture;
-    long       mtime;
-    uint16_t   gen; // bumped each (re)load; 0 == empty slot
-    bool       in_use;
-} TextureSlot;
+    Atlas       atlases[ATLAS_COUNT]; // atlases keep more metadata than the other resource types
 
-typedef struct {
-    char       path[ASSETS_PATH_LENGTH];
-    Sound      sound;
-    long       mtime;
-    uint16_t   gen; // bumped each (re)load; 0 == empty slot
-    bool       in_use;
-} SoundSlot;
+    Texture2D   textures  [TEX_COUNT];
+    long        tex_mtimes[TEX_COUNT];
 
-typedef struct {
-    char       path[ASSETS_PATH_LENGTH];
-    Font       font;
-    int        base_size;
-    long       mtime;
-    uint16_t   gen; // bumped each (re)load; 0 == empty slot
-    bool       in_use;
-} FontSlot;
+    Sound       sounds      [SOUND_COUNT];
+    long        sound_mtimes[SOUND_COUNT];
 
-typedef struct {
-    AtlasSlot    atlases [ASSETS_MAX_ATLASES];
-    TextureSlot  textures[ASSETS_MAX_TEXTURES];
-    SoundSlot    sounds  [ASSETS_MAX_SOUNDS];
-    FontSlot     fonts   [ASSETS_MAX_FONTS];
-
-    // Hot-reload: scan a few slots per frame instead of stat()-ing everything
-    uint16_t     scan_cursor;
+    Font        fonts      [FONT_COUNT];
+    long        font_mtimes[FONT_COUNT];
 } Assets;
 
-// Lookup-or-load. Returns ASSET_HANDLE_NULL on table-full or load failure.
-AtlasHandle   assets_load_atlas  (Assets *assets, const char *path, Arena *arena);
-TextureHandle assets_load_texture(Assets *assets, const char *path);
-SoundHandle   assets_load_sound  (Assets *assets, const char *path);
-FontHandle    assets_load_font   (Assets *assets, const char *path, int base_size);
+void assets_init       (Assets *assets, Arena *arena);
+void assets_poll_reload(Assets *assets, Arena *arena);
+void assets_unload_all (Assets *assets);
 
-// Resolve handle → resource.
-const AtlasSlot *assets_get_atlas  (const Assets *assets, AtlasHandle   handle);
-Texture2D        assets_get_texture(const Assets *assets, TextureHandle handle);
-Sound            assets_get_sound  (const Assets *assets, SoundHandle   handle);
-Font             assets_get_font   (const Assets *assets, FontHandle    handle);
+const Atlas *assets_get_atlas  (const Assets *assets, AtlasId   id);
+Texture2D    assets_get_texture(const Assets *assets, TextureId id);
+Sound        assets_get_sound  (const Assets *assets, SoundId   id);
+Font         assets_get_font   (const Assets *assets, FontId    id);
 
-TexRegion        atlas_find_region        (const AtlasSlot *atlas, const char *region_name);
-int              atlas_find_regions_by_tag(const AtlasSlot *atlas, const char *tag, TexRegion *regions_out, int max);
-int              atlas_num_regions_for_tag(const AtlasSlot *atlas, const char *tag);
-
-// Called by platform once per frame. Walks a few slots, reloads if mtime changed.
-void          assets_poll_reload(Assets *assets, Arena *arena);
-
-// Drop everything (used at shutdown, or on a "reset assets" hotkey).
-void          assets_unload_all(Assets *assets);
+TexRegion atlas_find_region         (const Atlas *atlas, const char *region_name);
+int       atlas_find_regions_by_tag (const Atlas *atlas, const char *tag, TexRegion *out, int max);
+int       atlas_count_regions_by_tag(const Atlas *atlas, const char *tag);
 
 #endif //ASSETS_H

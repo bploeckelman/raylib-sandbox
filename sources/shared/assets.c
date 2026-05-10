@@ -4,62 +4,60 @@
 #include <string.h>
 #include <stdio.h>
 
-// ---- per-type slot lookup --------------------------------------------------
+// ----------------------------------------------------------------------------
+// Static Asset path tables: canonical "assets this game knows about" list.
+// Register new assets by editing enums in assets.h and these tables together.
+// ----------------------------------------------------------------------------
 
-static int find_or_alloc_atlas(const Assets *assets, const char *path) {
-    int free_slot = -1;
-    for (int i = 0; i < ASSETS_MAX_ATLASES; i++) {
-        const bool in_use       = assets->atlases[i].in_use;
-        const bool matches_path = strcmp(assets->atlases[i].path, path) == 0;
-        if (in_use && matches_path) return i;
-        if (!in_use && free_slot < 0) free_slot = i;
-    }
-    return free_slot;
-}
+static const char *ATLAS_PATHS[ATLAS_COUNT] = {
+    [ATLAS_NONE] = NULL,
+    [ATLAS_HERO] = "atlas.rtpa",
+};
 
-static int find_or_alloc_texture(const Assets *assets, const char *path) {
-    int free_slot = -1;
-    for (int i = 0; i < ASSETS_MAX_TEXTURES; i++) {
-        const bool in_use       = assets->textures[i].in_use;
-        const bool matches_path = strcmp(assets->textures[i].path, path) == 0;
-        if (in_use && matches_path) return i;
-        if (!in_use && free_slot < 0) free_slot = i;
-    }
-    return free_slot;
-}
+static const char *TEXTURE_PATHS[TEX_COUNT] = {
+    [TEX_NONE]       = NULL,
+    [TEX_TEST]       = "test.png",
+    [TEX_GRID]       = "grid.png",
+    [TEX_ATLAS_HERO] = "atlas.png",
+};
 
-static int find_or_alloc_sound(const Assets *assets, const char *path) {
-    int free_slot = -1;
-    for (int i = 0; i < ASSETS_MAX_SOUNDS; i++) {
-        const bool in_use       = assets->sounds[i].in_use;
-        const bool matches_path = strcmp(assets->sounds[i].path, path) == 0;
-        if (in_use && matches_path) return i;
-        if (!in_use && free_slot < 0) free_slot = i;
-    }
-    return free_slot;
-}
+static const char *SOUND_PATHS[SOUND_COUNT] = {
+    [SOUND_NONE] = NULL,
+};
 
-static int find_or_alloc_font(const Assets *assets, const char *path) {
-    int free_slot = -1;
-    for (int i = 0; i < ASSETS_MAX_FONTS; i++) {
-        const bool in_use       = assets->fonts[i].in_use;
-        const bool matches_path = strcmp(assets->fonts[i].path, path) == 0;
-        if (in_use && matches_path) return i;
-        if (!in_use && free_slot < 0) free_slot = i;
-    }
-    return free_slot;
-}
+static const char *FONT_PATHS[FONT_COUNT] = {
+    [FONT_NONE] = NULL,
+};
 
-static bool parse_rtpa(AtlasSlot *slot, Assets *assets, const char *text, Arena *arena) {
-    int expected = -1;
-    const char *cursor = text;
+// Per-font base sizes (`LoadFontEx` param).
+// Add a row alongside `FONT_PATHS` whenever a new font is added.
+static const int FONT_SIZES[FONT_COUNT] = {
+    [FONT_NONE] = 0,
+};
+
+// Which TextureId backs each AtlasId.
+// The '.rtpa' file also references the image by filename,
+// but this is ignored at parse time in lieu of this table.
+static const TextureId ATLAS_IMAGES[ATLAS_COUNT] = {
+    [ATLAS_NONE] = TEX_NONE,
+    [ATLAS_HERO] = TEX_ATLAS_HERO,
+};
+
+// ----------------------------------------------------------------------------
+// Atlas data parser ('.rtpa' files), texture binding uses `ATLAS_IMAGES`.
+// ----------------------------------------------------------------------------
+
+static bool parse_rtpa(Atlas *atlas, const char *text, Arena *arena) {
+    int         expected = -1;
+    const char *cursor   = text;
 
     while (*cursor) {
         const char *eol = strchr(cursor, '\n');
-        size_t len = eol ? (size_t)(eol - cursor) : strlen(cursor);
-        char line[512];
+        size_t      len = eol ? (size_t)(eol - cursor) : strlen(cursor);
+        char        line[512];
         if (len >= sizeof line) len = sizeof line - 1;
-        memcpy(line, cursor, len); line[len] = 0;
+        memcpy(line, cursor, len);
+        line[len] = 0;
         cursor = eol ? eol + 1 : cursor + len;
 
         const char *p = line;
@@ -67,24 +65,20 @@ static bool parse_rtpa(AtlasSlot *slot, Assets *assets, const char *text, Arena 
         if (*p == 0 || *p == '#' || *p == '\r') continue;
 
         if (line[0] == 'a' && line[1] == ' ') {
-            char img[ASSETS_PATH_LENGTH];
-            int w, h, count, is_font, fsize;
-            const int matched = sscanf(line, "a %127s %d %d %d %d %d", img, &w, &h, &count, &is_font, &fsize);
-            if (matched == 6) {
-                const TextureHandle tex_handle = assets_load_texture(assets, img);
-                if (tex_handle.slot == 0 && tex_handle.gen == 0) return false;
-
-                slot->tex_handle = tex_handle;
-                slot->sprites = ARENA_NEW_ARRAY(arena, AtlasSprite, count);
-                slot->count   = 0;
-                expected      = count;
+            char img[128];
+            int  w, h, count, is_font, fsize;
+            if (sscanf(line, "a %127s %d %d %d %d %d",
+                       img, &w, &h, &count, &is_font, &fsize) == 6) {
+                atlas->sprites      = ARENA_NEW_ARRAY(arena, AtlasSprite, count);
+                atlas->sprite_count = 0;
+                expected            = count;
+                if (!atlas->sprites) return false;
             }
-        } else if (line[0] == 's' && line[1] == ' ' && slot->sprites && slot->count < expected) {
+        } else if (line[0] == 's' && line[1] == ' ' && atlas->sprites
+                   && atlas->sprite_count < expected) {
             char name[ATLAS_NAME_LENGTH], tag_q[ATLAS_TAG_LENGTH + 2];
-            int ox, oy, px, py, sw, sh, pad, trimmed;
-            int tx, ty, tw, th;
-            int ct, cx, cy, cw, ch;
-
+            int  ox, oy, px, py, sw, sh, pad, trimmed;
+            int  tx, ty, tw, th, ct, cx, cy, cw, ch;
             const int matched = sscanf(line,
                 "s %31s %33s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
                 name, tag_q,
@@ -95,281 +89,244 @@ static bool parse_rtpa(AtlasSlot *slot, Assets *assets, const char *text, Arena 
 
             if (matched == 19) {
                 const char *tag_in = tag_q;
-                size_t tag_len = strlen(tag_in);
+                size_t      tag_len = strlen(tag_in);
                 if (tag_len >= 2 && tag_in[0] == '"' && tag_in[tag_len - 1] == '"') {
-                    tag_in++; tag_len -= 2;
+                    tag_in++;
+                    tag_len -= 2;
                 }
-                AtlasSprite *sp = &slot->sprites[slot->count++];
-                snprintf(sp->name, sizeof sp->name, "%s", name);
-                snprintf(sp->tag,  sizeof sp->tag,  "%.*s", (int)tag_len, tag_in);
-                sp->tex_source = (Rectangle){
-                    .x = (float)px,
-                    .y = (float)py,
-                    .width = (float)sw,
-                    .height = (float)sh
+                AtlasSprite *sprite = &atlas->sprites[atlas->sprite_count++];
+                snprintf(sprite->name, sizeof sprite->name, "%s", name);
+                snprintf(sprite->tag,  sizeof sprite->tag,  "%.*s", (int)tag_len, tag_in);
+                sprite->tex_source_rect = (Rectangle){
+                    (float)px,
+                    (float)py,
+                    (float)sw,
+                    (float)sh
                 };
             }
         }
     }
-
-    if (slot->count != expected) {
-        TraceLog(LOG_WARNING, "parse_rtpa(%s): count(%d) != expected(%d)", slot->path, slot->count, expected);
-    }
-    return slot->count > 0;
+    // Requires count match, truncated '.rtpa' files fail to load
+    return expected > 0 && atlas->sprite_count == expected;
 }
 
-// ---- load ------------------------------------------------------------------
-
-AtlasHandle assets_load_atlas(Assets *assets, const char *path, Arena *arena) {
-    const int i = find_or_alloc_atlas(assets, path);
-    if (i < 0) return ATLAS_HANDLE_NULL;
-
-    AtlasSlot *slot = &assets->atlases[i];
-    if (slot->in_use) {
-        return (AtlasHandle){ (uint16_t)i, slot->gen };
-    }
-
+// Commit-on-success wrapper around `parse_rtpa`
+static bool atlas_reload(Atlas *atlas, const char *path, Arena *arena) {
     char *text = LoadFileText(path);
-    if (!text) return ATLAS_HANDLE_NULL;
+    if (!text) return false;
 
-    snprintf(slot->path, sizeof slot->path, "%s", path);
-    slot->mtime  = GetFileModTime(path);
-    slot->gen    = (slot->gen == 0) ? 1 : slot->gen + 1;
-    slot->in_use = true;
+    Atlas staging = *atlas;
+    staging.sprite_count = 0;
+    staging.mtime        = GetFileModTime(path);
 
-    const bool ok = parse_rtpa(slot, assets, text, arena);
+    const bool ok = parse_rtpa(&staging, text, arena);
     UnloadFileText(text);
 
-    if (!ok) {
-        slot->in_use = false;
-        return ATLAS_HANDLE_NULL;
-    }
-    return (AtlasHandle){ (uint16_t)i, slot->gen };
+    if (!ok) return false;
+    *atlas = staging;
+    return true;
 }
 
-TextureHandle assets_load_texture(Assets *assets, const char *path) {
-    const int i = find_or_alloc_texture(assets, path);
-    if (i < 0) return TEXTURE_HANDLE_NULL;
+// ----------------------------------------------------------------------------
+// Assets API
+// ----------------------------------------------------------------------------
 
-    TextureSlot *slot = &assets->textures[i];
-    if (slot->in_use) {
-        return (TextureHandle){ (uint16_t)i, slot->gen };
+void assets_init(Assets *assets, Arena * arena) {
+    // Textures
+    for (TextureId id = 1; id < TEX_COUNT; id++) {
+        if (!TEXTURE_PATHS[id]) {
+            TraceLog(LOG_WARNING, "assets_init: missing TEXTURE_PATH entry for id=%d", id);
+            continue;
+        }
+        const Texture2D texture = LoadTexture(TEXTURE_PATHS[id]);
+        if (texture.id == 0) {
+            TraceLog(LOG_WARNING, "assets_init: missing texture %s (id=%d)", TEXTURE_PATHS[id], id);
+            continue;
+        }
+        assets->textures  [id] = texture;
+        assets->tex_mtimes[id] = GetFileModTime(TEXTURE_PATHS[id]);
     }
 
-    const Texture2D texture = LoadTexture(path);
-    if (texture.id == 0) return TEXTURE_HANDLE_NULL;
-
-    snprintf(slot->path, sizeof slot->path, "%s", path);
-    slot->texture = texture;
-    slot->mtime   = GetFileModTime(path);
-    slot->gen     = (slot->gen == 0) ? 1 : slot->gen + 1;  // skip 0 (reserved for null)
-    slot->in_use  = true;
-    return (TextureHandle){ (uint16_t)i, slot->gen };
-}
-
-SoundHandle assets_load_sound(Assets *assets, const char *path) {
-    const int i = find_or_alloc_sound(assets, path);
-    if (i < 0) return SOUND_HANDLE_NULL;
-
-    SoundSlot *slot = &assets->sounds[i];
-    if (slot->in_use) {
-        return (SoundHandle){ (uint16_t)i, slot->gen };
+    // Sounds
+    for (SoundId id = 1; id < SOUND_COUNT; id++) {
+        if (!SOUND_PATHS[id]) {
+            TraceLog(LOG_WARNING, "assets_init: missing SOUND_PATHS entry for id=%d", id);
+            continue;
+        }
+        const Sound sound = LoadSound(SOUND_PATHS[id]);
+        if (sound.frameCount == 0) {
+            TraceLog(LOG_WARNING, "assets_init: missing sound %s (id=%d)", SOUND_PATHS[id], id);
+            continue;
+        }
+        assets->sounds      [id] = sound;
+        assets->sound_mtimes[id] = GetFileModTime(SOUND_PATHS[id]);
     }
 
-    const Sound sound = LoadSound(path);
-    if (sound.frameCount == 0) return SOUND_HANDLE_NULL;
-
-    snprintf(slot->path, sizeof slot->path, "%s", path);
-    slot->sound  = sound;
-    slot->mtime  = GetFileModTime(path);
-    slot->gen    = (slot->gen == 0) ? 1 : slot->gen + 1;
-    slot->in_use = true;
-    return (SoundHandle){ (uint16_t)i, slot->gen };
-}
-
-FontHandle assets_load_font(Assets *assets, const char *path, const int base_size) {
-    const int i = find_or_alloc_font(assets, path);
-    if (i < 0) return FONT_HANDLE_NULL;
-
-    FontSlot *slot = &assets->fonts[i];
-    if (slot->in_use) {
-        return (FontHandle){ (uint16_t)i, slot->gen };
+    // Fonts
+    for (FontId id = 1; id < FONT_COUNT; id++) {
+        if (!FONT_PATHS[id]) {
+            TraceLog(LOG_WARNING, "assets_init: missing FONT_PATH entry for id=%d", id);
+            continue;
+        }
+        const Font font = LoadFont(FONT_PATHS[id]);
+        if (font.texture.id == 0) {
+            TraceLog(LOG_WARNING, "assets_init: missing font %s (id=%d)", FONT_PATHS[id], id);
+            continue;
+        }
+        assets->fonts      [id] = font;
+        assets->font_mtimes[id] = GetFileModTime(FONT_PATHS[id]);
     }
 
-    const Font font = LoadFontEx(path, base_size, NULL, 0);  // NULL,0 = default ASCII set
-    if (font.texture.id == 0) return (FontHandle){0, 0};
-
-    snprintf(slot->path, sizeof slot->path, "%s", path);
-    slot->font      = font;
-    slot->base_size = base_size;
-    slot->mtime     = GetFileModTime(path);
-    slot->gen       = (slot->gen == 0) ? 1 : slot->gen + 1;
-    slot->in_use    = true;
-    return (FontHandle){ (uint16_t)i, slot->gen };
-}
-
-// ---- resolve ---------------------------------------------------------------
-
-const AtlasSlot *assets_get_atlas(const Assets *assets, const AtlasHandle handle) {
-    if (handle.slot < ASSETS_MAX_ATLASES) {
-        const AtlasSlot *slot = &assets->atlases[handle.slot];
-        if (slot->in_use && slot->gen == handle.gen) return slot;
+    // Atlases (after textures because they reference a TextureId)
+    for (AtlasId id = 1; id < ATLAS_COUNT; id++) {
+        if (!ATLAS_PATHS[id]) {
+            TraceLog(LOG_WARNING, "assets_init: missing ATLAS_PATH entry for id=%d", id);
+            continue;
+        }
+        assets->atlases[id].tex_id = ATLAS_IMAGES[id];
+        if (!atlas_reload(&assets->atlases[id], ATLAS_PATHS[id], arena)) {
+            TraceLog(LOG_WARNING, "assets_init: missing atlas %s", ATLAS_PATHS[id]);
+        } else {
+            TraceLog(LOG_INFO, "assets_init: loaded atlas %s (%d sprites)",
+                ATLAS_PATHS[id], assets->atlases[id].sprite_count);
+        }
     }
-    return NULL;
 }
 
-Texture2D assets_get_texture(const Assets *assets, const TextureHandle handle) {
-    if (handle.slot < ASSETS_MAX_TEXTURES) {
-        const TextureSlot *slot = &assets->textures[handle.slot];
-        if (slot->in_use && slot->gen == handle.gen) return slot->texture;
+void assets_poll_reload(Assets *assets, Arena *arena) {
+    // Scan all slots each frame. TEX_COUNT et al. are small.
+    for (TextureId id = 1; id < TEX_COUNT; id++) {
+        const char *path = TEXTURE_PATHS[id];
+        if (!path) continue;
+
+        const long now_mtime = GetFileModTime(path);
+        if (now_mtime == 0 || now_mtime == assets->tex_mtimes[id]) continue;
+
+        const Texture2D fresh = LoadTexture(path);
+        if (fresh.id == 0) continue;
+
+        UnloadTexture(assets->textures[id]);
+        assets->textures   [id] = fresh;
+        assets->tex_mtimes [id] = now_mtime;
+        TraceLog(LOG_INFO, "reloaded texture %s", path);
     }
-    return (Texture2D){0};   // caller can check tex.id == 0
-}
 
-Sound assets_get_sound(const Assets *assets, const SoundHandle handle) {
-    if (handle.slot < ASSETS_MAX_SOUNDS) {
-        const SoundSlot *slot = &assets->sounds[handle.slot];
-        if (slot->in_use && slot->gen == handle.gen) return slot->sound;
+    for (SoundId id = 1; id < SOUND_COUNT; id++) {
+        const char *path = SOUND_PATHS[id];
+        if (!path) continue;
+
+        const long now_mtime = GetFileModTime(path);
+        if (now_mtime == 0 || now_mtime == assets->sound_mtimes[id]) continue;
+
+        const Sound fresh = LoadSound(path);
+        if (fresh.frameCount == 0) continue;
+
+        UnloadSound(assets->sounds[id]);
+        assets->sounds       [id] = fresh;
+        assets->sound_mtimes [id] = now_mtime;
+        TraceLog(LOG_INFO, "reloaded sound %s", path);
     }
-    return (Sound){0};
-}
 
-Font assets_get_font(const Assets *assets, const FontHandle handle) {
-    if (handle.slot < ASSETS_MAX_FONTS) {
-        const FontSlot *slot = &assets->fonts[handle.slot];
-        if (slot->in_use && slot->gen == handle.gen) return slot->font;
+    for (FontId id = 1; id < FONT_COUNT; id++) {
+        const char *path = FONT_PATHS[id];
+        if (!path) continue;
+
+        const long now_mtime = GetFileModTime(path);
+        if (now_mtime == 0 || now_mtime == assets->font_mtimes[id]) continue;
+
+        const Font fresh = LoadFontEx(path, FONT_SIZES[id], NULL, 0);
+        if (fresh.texture.id == 0) continue;
+
+        UnloadFont(assets->fonts[id]);
+        assets->fonts       [id] = fresh;
+        assets->font_mtimes [id] = now_mtime;
+        TraceLog(LOG_INFO, "reloaded font %s", path);
     }
-    return GetFontDefault();   // raylib's built-in 10px font is a fine fallback
+
+    for (AtlasId id = 1; id < ATLAS_COUNT; id++) {
+        const char *path = ATLAS_PATHS[id];
+        if (!path) continue;
+
+        const long now_mtime = GetFileModTime(path);
+        if (now_mtime == 0 || now_mtime == assets->atlases[id].mtime) continue;
+
+        if (atlas_reload(&assets->atlases[id], path, arena)) {
+            TraceLog(LOG_INFO, "reloaded atlas %s", path);
+        } else {
+            TraceLog(LOG_WARNING, "failed to reload atlas %s", path);
+            // mtime not bumped → next poll retries
+        }
+    }
 }
 
-TexRegion atlas_find_region(const AtlasSlot *atlas, const char *region_name) {
-    if (!atlas || !atlas->in_use) return (TexRegion){0};
-    for (int i = 0; i < atlas->count; i++) {
+void assets_unload_all(Assets *assets) {
+    for (TextureId id = 1; id < TEX_COUNT; id++) {
+        if (assets->textures[id].id != 0) {
+            UnloadTexture(assets->textures[id]);
+        }
+    }
+    for (SoundId id = 1; id < SOUND_COUNT; id++) {
+        if (assets->sounds[id].frameCount != 0) {
+            UnloadSound(assets->sounds[id]);
+        }
+    }
+    for (FontId id = 1; id < FONT_COUNT; id++) {
+        if (assets->fonts[id].texture.id != 0) {
+            UnloadFont(assets->fonts[id]);
+        }
+    }
+    // Atlas backing textures are in assets->textures and were freed above, this clears metadata too.
+    memset(assets, 0, sizeof *assets);
+}
+
+const Atlas *assets_get_atlas(const Assets *assets, const AtlasId id) {
+    if (id == ATLAS_NONE || id >= ATLAS_COUNT) return NULL;
+    return &assets->atlases[id];
+}
+
+Texture2D assets_get_texture(const Assets *assets, const TextureId id) {
+    if (id == TEX_NONE || id >= TEX_COUNT) return (Texture2D){0};
+    return assets->textures[id];
+}
+
+Sound assets_get_sound(const Assets *assets, const SoundId id) {
+    if (id == SOUND_NONE || id >= SOUND_COUNT) return (Sound){0};
+    return assets->sounds[id];
+}
+
+Font assets_get_font(const Assets *assets, const FontId    id) {
+    if (id == FONT_NONE || id >= FONT_COUNT) return (Font){0};
+    return assets->fonts[id];
+}
+
+TexRegion atlas_find_region(const Atlas *atlas, const char *region_name) {
+    if (!atlas) return (TexRegion){0};
+    for (int i = 0; i < atlas->sprite_count; i++) {
         if (strcmp(atlas->sprites[i].name, region_name) == 0) {
-            return (TexRegion){ atlas->tex_handle, atlas->sprites[i].tex_source };
+            return (TexRegion){ atlas->tex_id, atlas->sprites[i].tex_source_rect };
         }
     }
     return (TexRegion){0};
 }
 
-int atlas_find_regions_by_tag(const AtlasSlot *atlas, const char *tag, TexRegion *regions_out, const int max) {
-    if (!atlas || !atlas->in_use) return 0;
-    int num_found = 0;
-    for (int i = 0; i < atlas->count && num_found < max; i++) {
+int atlas_find_regions_by_tag(const Atlas *atlas, const char *tag, TexRegion *out, const int max) {
+    if (!atlas) return 0;
+    int num_regions = 0;
+    for (int i = 0; i < atlas->sprite_count && num_regions < max; i++) {
         if (strcmp(atlas->sprites[i].tag, tag) == 0) {
-            regions_out[num_found++] = (TexRegion){ atlas->tex_handle, atlas->sprites[i].tex_source };
+            out[num_regions++] = (TexRegion){ atlas->tex_id, atlas->sprites[i].tex_source_rect };
         }
     }
-    return num_found;
+    return num_regions;
 }
 
-int atlas_num_regions_for_tag(const AtlasSlot *atlas, const char *tag) {
-    if (!atlas || !atlas->in_use) return 0;
-    int num_found = 0;
-    for (int i = 0; i < atlas->count; i++) {
+int atlas_count_regions_by_tag(const Atlas *atlas, const char *tag) {
+    if (!atlas) return 0;
+    int num_regions = 0;
+    for (int i = 0; i < atlas->sprite_count; i++) {
         if (strcmp(atlas->sprites[i].tag, tag) == 0) {
-            num_found++;
+            num_regions++;
         }
     }
-    return num_found;
-}
-
-// ---- hot reload ------------------------------------------------------------
-
-void assets_poll_reload(Assets *assets, Arena *arena) {
-    // Spread the cost: ~8 slots per type per frame, round-robin.
-    // Note: gen NOT bumped on reload — same logical asset, handles stay valid.
-
-    for (int n = 0; n < 8; n++) {
-        const uint16_t i = assets->scan_cursor++ % ASSETS_MAX_TEXTURES;
-        TextureSlot *slot = &assets->textures[i];
-        if (!slot->in_use) continue;
-
-        const long now_mtime = GetFileModTime(slot->path);
-        if (now_mtime == 0 || now_mtime == slot->mtime) continue;
-
-        const Texture2D fresh = LoadTexture(slot->path);
-        if (fresh.id == 0) continue;
-
-        UnloadTexture(slot->texture);
-        slot->texture   = fresh;
-        slot->mtime = now_mtime;
-        TraceLog(LOG_INFO, "reloaded texture %s", slot->path);
-    }
-
-    for (int n = 0; n < 8; n++) {
-        const uint16_t i = assets->scan_cursor++ % ASSETS_MAX_SOUNDS;
-        SoundSlot *slot = &assets->sounds[i];
-        if (!slot->in_use) continue;
-
-        const long now_mtime = GetFileModTime(slot->path);
-        if (now_mtime == 0 || now_mtime == slot->mtime) continue;
-
-        const Sound fresh = LoadSound(slot->path);
-        if (fresh.frameCount == 0) continue;
-
-        UnloadSound(slot->sound);
-        slot->sound = fresh;
-        slot->mtime = now_mtime;
-        TraceLog(LOG_INFO, "reloaded sound %s", slot->path);
-    }
-
-    for (int n = 0; n < 8; n++) {
-        const uint16_t i = assets->scan_cursor++ % ASSETS_MAX_FONTS;
-        FontSlot *slot = &assets->fonts[i];
-        if (!slot->in_use) continue;
-
-        const long now_mtime = GetFileModTime(slot->path);
-        if (now_mtime == 0 || now_mtime == slot->mtime) continue;
-
-        const Font fresh = LoadFontEx(slot->path, slot->base_size, NULL, 0);
-        if (fresh.texture.id == 0) continue;
-
-        UnloadFont(slot->font);
-        slot->font  = fresh;
-        slot->mtime = now_mtime;
-        TraceLog(LOG_INFO, "reloaded font %s", slot->path);
-    }
-
-    // ASSETS_MAX_ATLASES is small, ok to scan them all instead of a subset per frame
-    for (int n = 0; n < ASSETS_MAX_ATLASES; n++) {
-        AtlasSlot *slot = &assets->atlases[n];
-        if (!slot->in_use) continue;
-
-        const long prev_count = slot->count;
-        const long prev_mtime = slot->mtime;
-        const long now_mtime = GetFileModTime(slot->path);
-        if (now_mtime == 0 || now_mtime == prev_mtime) continue;
-
-        char *text = LoadFileText(slot->path);
-        if (!text) continue;
-
-        // gen NOT bumped; same logical atlas, handles stay valid
-        // old sprite bytes leak into arena (dev-time only)
-        slot->mtime = now_mtime;
-        slot->count = 0;
-        if (parse_rtpa(slot, assets, text, arena)) {
-            TraceLog(LOG_INFO, "reloaded atlas %s", slot->path);
-        } else {
-            // Failed to parse, rollback to previous state
-            TraceLog(LOG_WARNING, "failed to reload atlas %s", slot->path);
-            slot->mtime = prev_mtime;
-            slot->count = prev_count;
-        }
-        UnloadFileText(text);
-    }
-}
-
-void assets_unload_all(Assets *assets) {
-    // NOTE: atlas textures are automatically cleaned up because they're owned by `assets->textures[]`
-    for (int i = 0; i < ASSETS_MAX_TEXTURES; i++) {
-        if (assets->textures[i].in_use) UnloadTexture(assets->textures[i].texture);
-    }
-    for (int i = 0; i < ASSETS_MAX_SOUNDS; i++) {
-        if (assets->sounds[i].in_use) UnloadSound(assets->sounds[i].sound);
-    }
-    for (int i = 0; i < ASSETS_MAX_FONTS; i++) {
-        if (assets->fonts[i].in_use) UnloadFont(assets->fonts[i].font);
-    }
-    memset(assets, 0, sizeof *assets);
+    return num_regions;
 }

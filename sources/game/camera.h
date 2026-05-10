@@ -7,7 +7,7 @@
 
 // Visible world rect for the given camera state.
 // Center-anchored; camera_pos is world point that appears at screen center
-static Rectangle camera_world_bounds(const GameWorld *w) {
+static Rectangle camera_world_bounds(const WorldSnapshot *w) {
     const float zoom   = w->camera_zoom > 0 ? w->camera_zoom : 1.0f;
     const float half_w = (SCREEN_WIDTH  * 0.5f) / zoom;
     const float half_h = (SCREEN_HEIGHT * 0.5f) / zoom;
