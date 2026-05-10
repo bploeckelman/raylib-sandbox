@@ -57,7 +57,8 @@ typedef struct {
     ecs_world_t *ecs;          // not included in snapshot, flecs owns its own state
     ecs_query_t *q_renderable_static;   // build once on first load
     ecs_query_t *q_renderable_animated; // build once on first load
-    ecs_entity_t test_entity;
+    ecs_entity_t test_entity_1;
+    ecs_entity_t test_entity_2;
 
     // game world state at start, end of last fixed step
     GameWorld  world_prev;

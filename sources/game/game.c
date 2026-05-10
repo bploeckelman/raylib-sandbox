@@ -39,12 +39,11 @@ GAME_EXPORT void game_load(GameMemory *m) {
         // First-time spawn - one moving sprite to verify the ECS setup, update/render pipeline
         const float width  = 100.0f;
         const float height = 100.0f;
-        const ecs_entity_t e = ecs_new(m->ecs);
-        ecs_set(m->ecs, e, Position, { SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f });
-        ecs_set(m->ecs, e, Velocity, { 200, 140 });
-        ecs_set(m->ecs, e, Renderable, { RENDERABLE_DEFAULTS, .size = (Vector2){ width, height } });
-        ecs_set(m->ecs, e, Collider,   { COLLIDER_DEFAULTS,   .size = (Vector2){ width, height } });
-
+        const ecs_entity_t e1 = ecs_new(m->ecs);
+        ecs_set(m->ecs, e1, Position, { SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f });
+        ecs_set(m->ecs, e1, Velocity, { 200, 140 });
+        ecs_set(m->ecs, e1, Renderable, { RENDERABLE_DEFAULTS, .size = (Vector2){ width, height }, .layer = 0 });
+        ecs_set(m->ecs, e1, Collider,   { COLLIDER_DEFAULTS,   .size = (Vector2){ width, height } });
         const char      *anim_tag  = "hero-idle";
         const AtlasSlot *atlas      = assets_get_atlas(&m->assets, m->atlas_hero);
         const int        num_frames = atlas_num_regions_for_tag(atlas, anim_tag);
@@ -54,7 +53,7 @@ GAME_EXPORT void game_load(GameMemory *m) {
             if (frames_count != num_frames) {
                 TraceLog(LOG_WARNING, "animator(%s): num frames - expected(%d) != actual(%d)", anim_tag, num_frames, frames_count);
             }
-            ecs_set(m->ecs, e, Animator, {
+            ecs_set(m->ecs, e1, Animator, {
                 ANIMATOR_DEFAULTS,
                 .mode          = ANIM_LOOP,
                 .frame_seconds = 0.1f,
@@ -62,7 +61,30 @@ GAME_EXPORT void game_load(GameMemory *m) {
                 .frames        = frames
             });
         }
-        m->test_entity = e;
+        m->test_entity_1 = e1;
+
+        const ecs_entity_t e2 = ecs_new(m->ecs);
+        ecs_set(m->ecs, e2, Position, { SCREEN_WIDTH / 2.0f + 50.0f, SCREEN_HEIGHT / 2.0f + 50.0f });
+        ecs_set(m->ecs, e2, Velocity, { 200, 140 });
+        ecs_set(m->ecs, e2, Renderable, { RENDERABLE_DEFAULTS, .size = (Vector2){ width, height }, .layer = 1 });
+        ecs_set(m->ecs, e2, Collider,   { COLLIDER_DEFAULTS,   .size = (Vector2){ width, height } });
+        const char      *anim_tag_2   = "hero-run";
+        const int        num_frames_2 = atlas_num_regions_for_tag(atlas, anim_tag_2);
+        if (num_frames_2 > 0) {
+            TexRegion *frames = ARENA_NEW_ARRAY(&m->arena, TexRegion, num_frames_2);
+            const int frames_count = atlas_find_regions_by_tag(atlas, anim_tag_2, frames, num_frames_2);
+            if (frames_count != num_frames_2) {
+                TraceLog(LOG_WARNING, "animator(%s): num frames - expected(%d) != actual(%d)", anim_tag_2, num_frames_2, frames_count);
+            }
+            ecs_set(m->ecs, e2, Animator, {
+                ANIMATOR_DEFAULTS,
+                .mode          = ANIM_LOOP,
+                .frame_seconds = 0.1f,
+                .frames_count  = frames_count,
+                .frames        = frames
+            });
+        }
+        m->test_entity_2 = e2;
 
         m->initialized = true;
     }
@@ -84,7 +106,7 @@ GAME_EXPORT void game_update(GameMemory *m, const GameInput *input, const float 
 
     // TESTING: squash, stretch
     if (input->key_space) {
-        Renderable *renderable = ecs_get_mut(m->ecs, m->test_entity, Renderable);
+        Renderable *renderable = ecs_get_mut(m->ecs, m->test_entity_1, Renderable);
         renderable->scale = (Vector2){ 1.5f, 1.5f };
     }
 
