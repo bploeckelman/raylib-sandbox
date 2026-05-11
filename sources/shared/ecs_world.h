@@ -3,6 +3,7 @@
 
 #include "shared/assets.h"
 #include "shared/ecs_components.h"
+#include "shared/raytmx.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -34,6 +35,7 @@ typedef struct {
     EntityId next_entity_id;
 
     Bounds world_bounds;
+    TmxMap *map;
 
     BoundsStore     bounds;
     PositionStore   positions;

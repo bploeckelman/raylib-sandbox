@@ -3,11 +3,13 @@
 // This file knows nothing about the main loop, the window, or timing —
 // only how to advance and draw the simulation.
 
+#define RAYTMX_IMPLEMENTATION
 #include "game/game.h"
 #include "game/camera.h"
 #include "game/ecs_systems.h"
 #include "shared/assets.h"
 #include "shared/common.h"
+#include "shared/raytmx.h"
 #include "raylib.h"
 #include "raymath.h"
 
@@ -70,6 +72,14 @@ GAME_EXPORT void game_load(GameMemory *m) {
         m->test_entity_1 = spawn_animated(m, screen_center, vel, size, 0, "hero-idle");
         m->test_entity_2 = spawn_animated(m, screen_center, vel, size, 1, "hero-run");
 
+        const char *map_path = "maps/example.tmx";
+        TmxMap *map = LoadTMX(map_path);
+        if (map) {
+            m->world.map = map;
+        } else {
+            TraceLog(LOG_WARNING, "game_load(): failed to load map '%s'", map_path);
+        }
+
         m->initialized = true;
     }
     // NOTE: Re-bind anything tied to this module's code/.rodata here.
@@ -120,7 +130,8 @@ GAME_EXPORT void game_render(const GameMemory *m, const float alpha) {
     ClearBackground(RAYWHITE);
 
     // Apply 'world' camera transform
-    BeginMode2D(camera_to_raylib(cam_pos, cam_zoom));
+    const Camera2D camera = camera_to_raylib(cam_pos, cam_zoom);
+    BeginMode2D(camera);
 
     // Draw background texture
     const Texture2D background = assets_get_texture(&m->assets, TEX_TEST);
@@ -128,6 +139,12 @@ GAME_EXPORT void game_render(const GameMemory *m, const float alpha) {
         const int texture_x = (SCREEN_WIDTH  - background.width ) / 2;
         const int texture_y = (SCREEN_HEIGHT - background.height) / 2;
         DrawTexture(background, texture_x, texture_y, WHITE);
+    }
+
+    TmxMap *map = m->world.map;
+    if (map) {
+        AnimateTMX(map);
+        DrawTMX(map, &camera, NULL, 0, 0, WHITE);
     }
 
     // Interpolate between ECS render snapshots
@@ -175,4 +192,6 @@ GAME_EXPORT void game_shutdown(GameMemory *m) {
     // Final teardown — release every GPU/audio handle. Called once at exit,
     // before raylib's GL context is destroyed by CloseWindow().
     assets_unload_all(&m->assets);
+
+    if (m->world.map) UnloadTMX(m->world.map);
 }
