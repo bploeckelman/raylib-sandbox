@@ -26,6 +26,7 @@ DECLARE_COMPONENT_STORE(ColliderStore,   Collider)
 DECLARE_COMPONENT_STORE(RenderableStore, Renderable)
 DECLARE_COMPONENT_STORE(TexRegionStore,  TexRegion)
 DECLARE_COMPONENT_STORE(AnimatorStore,   Animator)
+DECLARE_COMPONENT_STORE(TilemapStore,    Tilemap)
 
 #undef DECLARE_COMPONENT_STORE
 
@@ -44,6 +45,7 @@ typedef struct {
     RenderableStore renderables;
     TexRegionStore  tex_regions;
     AnimatorStore   animators;
+    TilemapStore    tilemaps;
 } World;
 
 // Lifecycle
@@ -59,6 +61,7 @@ void world_set_collider   (World *world, EntityId id, Collider   value);
 void world_set_renderable (World *world, EntityId id, Renderable value);
 void world_set_tex_region (World *world, EntityId id, TexRegion  value);
 void world_set_animator   (World *world, EntityId id, Animator   value);
+void world_set_tilemap    (World *world, EntityId id, Tilemap    value);
 
 // Per-component getters (returns NULL if not present)
 Bounds     *world_get_bounds     (World *world, EntityId id);
@@ -68,5 +71,6 @@ Collider   *world_get_collider   (World *world, EntityId id);
 Renderable *world_get_renderable (World *world, EntityId id);
 TexRegion  *world_get_tex_region (World *world, EntityId id);
 Animator   *world_get_animator   (World *world, EntityId id);
+Tilemap    *world_get_tilemap    (World *world, EntityId id);
 
 #endif //WORLD_H

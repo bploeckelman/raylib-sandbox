@@ -19,6 +19,39 @@
   #define GAME_EXPORT __attribute__((visibility("default")))
 #endif
 
+static EntityId spawn_map(GameMemory *m, const Vector2 pos, const char *path) {
+    World *world = &m->world;
+
+    const EntityId entity = world_create_entity(world);
+    if (entity == ENTITY_NONE) return ENTITY_NONE;
+
+    TmxMap *tmx = LoadTMX(path);
+    if (!tmx) {
+        TraceLog(LOG_WARNING, "spawn_map(): failed to load map '%s'", path);
+        return ENTITY_NONE;
+    }
+
+    const uint32_t cols = tmx->width;
+    const uint32_t rows = tmx->height;
+    const uint32_t size = tmx->tileWidth;
+
+    world_set_position(world, entity, pos);
+    world_set_bounds(world, entity, (Bounds){
+        .x      = pos.x,
+        .y      = pos.y,
+        .width  = (float)(cols * size),
+        .height = (float)(rows * size),
+    });
+    world_set_tilemap(world, entity, (Tilemap){
+        .map       = tmx,
+        .cols      = cols,
+        .rows      = rows,
+        .tile_size = size,
+    });
+
+    return entity;
+}
+
 static EntityId spawn_animated(
     GameMemory    *m,
     const Vector2  pos,
@@ -72,13 +105,7 @@ GAME_EXPORT void game_load(GameMemory *m) {
         m->test_entity_1 = spawn_animated(m, screen_center, vel, size, 0, "hero-idle");
         m->test_entity_2 = spawn_animated(m, screen_center, vel, size, 1, "hero-run");
 
-        const char *map_path = "maps/example.tmx";
-        TmxMap *map = LoadTMX(map_path);
-        if (map) {
-            m->world.map = map;
-        } else {
-            TraceLog(LOG_WARNING, "game_load(): failed to load map '%s'", map_path);
-        }
+        m->entity_map = spawn_map(m, screen_center, "maps/example.tmx");
 
         m->initialized = true;
     }
@@ -141,10 +168,13 @@ GAME_EXPORT void game_render(const GameMemory *m, const float alpha) {
         DrawTexture(background, texture_x, texture_y, WHITE);
     }
 
-    TmxMap *map = m->world.map;
-    if (map) {
-        AnimateTMX(map);
-        DrawTMX(map, &camera, NULL, 0, 0, WHITE);
+    // TODO: Tilemap component is kind of a Renderable, decide how to integrate it properly
+    for (int i = 0; i < m->world.num_entities; i++) {
+        const Tilemap *tilemap = world_get_tilemap(&m->world, i);
+        if (tilemap && tilemap->map) {
+            AnimateTMX(tilemap->map);
+            DrawTMX(tilemap->map, &camera, NULL, 0, 0, WHITE);
+        }
     }
 
     // Interpolate between ECS render snapshots
@@ -193,5 +223,8 @@ GAME_EXPORT void game_shutdown(GameMemory *m) {
     // before raylib's GL context is destroyed by CloseWindow().
     assets_unload_all(&m->assets);
 
-    if (m->world.map) UnloadTMX(m->world.map);
+    for (int i = 0; i < m->world.num_entities; i++) {
+        const Tilemap *tilemap = world_get_tilemap(&m->world, i);
+        if (tilemap) UnloadTMX(tilemap->map);
+    }
 }

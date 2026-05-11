@@ -49,6 +49,7 @@ void world_set_collider   (World *world, const EntityId id, const Collider   val
 void world_set_renderable (World *world, const EntityId id, const Renderable value) { world->renderables .present[id] = true; world->renderables .data[id] = value; }
 void world_set_tex_region (World *world, const EntityId id, const TexRegion  value) { world->tex_regions .present[id] = true; world->tex_regions .data[id] = value; }
 void world_set_animator   (World *world, const EntityId id, const Animator   value) { world->animators   .present[id] = true; world->animators   .data[id] = value; }
+void world_set_tilemap    (World *world, const EntityId id, const Tilemap    value) { world->tilemaps    .present[id] = true; world->tilemaps    .data[id] = value; }
 
 // ----------------------------------------------------------------------------
 // Per-component getters (returns NULL if not present)
@@ -61,3 +62,4 @@ Collider   *world_get_collider   (World *world, const EntityId id) { return worl
 Renderable *world_get_renderable (World *world, const EntityId id) { return world->renderables .present[id] ? &world->renderables .data[id] : NULL; }
 TexRegion  *world_get_tex_region (World *world, const EntityId id) { return world->tex_regions .present[id] ? &world->tex_regions .data[id] : NULL; }
 Animator   *world_get_animator   (World *world, const EntityId id) { return world->animators   .present[id] ? &world->animators   .data[id] : NULL; }
+Tilemap    *world_get_tilemap    (World *world, const EntityId id) { return world->tilemaps    .present[id] ? &world->tilemaps    .data[id] : NULL; }

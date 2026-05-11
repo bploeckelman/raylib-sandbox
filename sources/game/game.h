@@ -57,6 +57,7 @@ typedef struct {
     WorldSnapshot world_curr;
     EntityId      test_entity_1;
     EntityId      test_entity_2;
+    EntityId      entity_map;
 } GameMemory;
 
 // Per-frame input snapshot gathered by the platform

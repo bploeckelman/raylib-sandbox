@@ -2,6 +2,7 @@
 #define COMPONENTS_H
 
 #include "shared/assets.h"
+#include "shared/raytmx.h"
 #include "raylib.h"
 
 #include <stdbool.h>
@@ -47,5 +48,15 @@ typedef struct {
     float        frame_seconds;
     float        state_time;
 } Animator;
+
+#define TILEMAP_LAYER_OBJECTS   "objects"
+#define TILEMAP_LAYER_COLLISION "solid"
+
+typedef struct {
+    TmxMap   *map;
+    uint32_t  cols;
+    uint32_t  rows;
+    uint32_t  tile_size;
+} Tilemap;
 
 #endif //COMPONENTS_H
