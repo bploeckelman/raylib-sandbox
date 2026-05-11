@@ -2,11 +2,8 @@
 #define ASSETS_H
 
 #include "shared/arena.h"
-#include "shared/components.h"
 #include "raylib.h"
 
-#define ASSETS_MAX_ATLASES    4
-#define ASSETS_PATH_LENGTH  128
 #define ATLAS_NAME_LENGTH    32
 #define ATLAS_TAG_LENGTH     32
 
@@ -50,6 +47,12 @@ typedef struct {
     long         mtime;
 } Atlas;
 
+#define TEX_REGION_DEFAULTS .tex_source_rect = (Rectangle){ 0, 0, 0, 0 }
+
+typedef struct { TextureId texture_id; Rectangle tex_source_rect; } TexRegion;
+
+typedef struct { TexRegion *regions; int count; } AtlasRegions;
+
 typedef struct {
     Atlas       atlases[ATLAS_COUNT]; // atlases keep more metadata than the other resource types
 
@@ -72,8 +75,8 @@ Texture2D    assets_get_texture(const Assets *assets, TextureId id);
 Sound        assets_get_sound  (const Assets *assets, SoundId   id);
 Font         assets_get_font   (const Assets *assets, FontId    id);
 
-TexRegion atlas_find_region         (const Atlas *atlas, const char *region_name);
-int       atlas_find_regions_by_tag (const Atlas *atlas, const char *tag, TexRegion *out, int max);
-int       atlas_count_regions_by_tag(const Atlas *atlas, const char *tag);
+TexRegion    atlas_find_region         (const Atlas *atlas, const char *region_name);
+AtlasRegions atlas_find_regions_by_tag (const Atlas *atlas, const char *tag, Arena *arena);
+int          atlas_count_regions_by_tag(const Atlas *atlas, const char *tag);
 
 #endif //ASSETS_H

@@ -1,4 +1,4 @@
-#include "shared/world.h"
+#include "shared/ecs_world.h"
 
 // ----------------------------------------------------------------------------
 // Lifecycle

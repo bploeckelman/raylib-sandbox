@@ -1,7 +1,8 @@
 #ifndef WORLD_H
 #define WORLD_H
 
-#include "shared/components.h"
+#include "shared/assets.h"
+#include "shared/ecs_components.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -31,6 +32,8 @@ typedef struct {
     bool     alive[MAX_ENTITIES];
     int      num_entities;
     EntityId next_entity_id;
+
+    Bounds world_bounds;
 
     BoundsStore     bounds;
     PositionStore   positions;

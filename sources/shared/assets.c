@@ -309,15 +309,26 @@ TexRegion atlas_find_region(const Atlas *atlas, const char *region_name) {
     return (TexRegion){0};
 }
 
-int atlas_find_regions_by_tag(const Atlas *atlas, const char *tag, TexRegion *out, const int max) {
-    if (!atlas) return 0;
-    int num_regions = 0;
-    for (int i = 0; i < atlas->sprite_count && num_regions < max; i++) {
+AtlasRegions atlas_find_regions_by_tag(const Atlas *atlas, const char *tag, Arena *arena) {
+    if (!atlas) return (AtlasRegions){0};
+
+    const int          num_regions   = atlas_count_regions_by_tag(atlas, tag);
+    const AtlasRegions atlas_regions = (AtlasRegions){
+        .regions = ARENA_NEW_ARRAY(arena, TexRegion, num_regions),
+        .count   = num_regions,
+    };
+
+    int region_index = 0;
+    for (int i = 0; i < atlas->sprite_count; i++) {
         if (strcmp(atlas->sprites[i].tag, tag) == 0) {
-            out[num_regions++] = (TexRegion){ atlas->tex_id, atlas->sprites[i].tex_source_rect };
+            atlas_regions.regions[region_index++] = (TexRegion){
+                .texture_id      = atlas->tex_id,
+                .tex_source_rect = atlas->sprites[i].tex_source_rect
+            };
         }
     }
-    return num_regions;
+
+    return atlas_regions;
 }
 
 int atlas_count_regions_by_tag(const Atlas *atlas, const char *tag) {

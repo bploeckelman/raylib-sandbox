@@ -4,12 +4,10 @@
 // only how to advance and draw the simulation.
 
 #include "game/game.h"
-
-#include "camera.h"
-#include "game/systems.h"
-#include "shared/common.h"
+#include "game/camera.h"
+#include "game/ecs_systems.h"
 #include "shared/assets.h"
-#include "shared/ecs_components.h"
+#include "shared/common.h"
 #include "raylib.h"
 #include "raymath.h"
 
@@ -19,72 +17,58 @@
   #define GAME_EXPORT __attribute__((visibility("default")))
 #endif
 
-GAME_EXPORT void game_load(GameMemory *m) {
-    // Always wipe stale system entities (their handlers point into freed code),
-    // and re-register, which also rebinds this DLL's component-id calls
-    ecs_delete_with(m->ecs, EcsSystem);
-    register_systems(m);
+static EntityId spawn_animated(
+    GameMemory    *m,
+    const Vector2  pos,
+    const Vector2  vel,
+    const Vector2  size,
+    const int      layer,
+    const char    *anim_tag
+) {
+    World        *world  = &m->world;
+    Arena        *arena  = &m->arena;
+    const Assets *assets = &m->assets;
 
+    const EntityId entity = world_create_entity(world);
+    if (entity == ENTITY_NONE) return ENTITY_NONE;
+
+    world_set_position  (world, entity, pos);
+    world_set_velocity  (world, entity, vel);
+    world_set_renderable(world, entity, (Renderable){ RENDERABLE_DEFAULTS, .size = size, .layer = layer });
+    world_set_collider  (world, entity, (Collider)  { COLLIDER_DEFAULTS,   .size = size });
+
+    const Atlas        *atlas         = assets_get_atlas(assets, ATLAS_HERO);
+    const AtlasRegions  atlas_regions = atlas_find_regions_by_tag(atlas, anim_tag, arena);
+    if (atlas_regions.count > 0) {
+        world_set_animator(world, entity, (Animator){
+            ANIMATOR_DEFAULTS,
+            .mode          = ANIM_LOOP,
+            .frames        = atlas_regions,
+            .frame_seconds = 0.1f,
+        });
+    } else {
+        TraceLog(LOG_WARNING, "anim(%s): no atlas regions found", anim_tag);
+    }
+
+    return entity;
+}
+
+GAME_EXPORT void game_load(GameMemory *m) {
     if (!m->initialized) {
+        const Vector2 screen_center = (Vector2){ SCREEN_WIDTH * 0.5f, SCREEN_HEIGHT * 0.5f };
+
         m->world_curr = (WorldSnapshot){
-            .camera_pos = (Vector2){ SCREEN_WIDTH * 0.5f, SCREEN_HEIGHT * 0.5f },
+            .camera_pos  = screen_center,
             .camera_zoom = 1.0f,
         };
         m->world_prev = m->world_curr;
 
-        m->atlas_hero = assets_load_atlas(&m->assets, "atlas.rtpa", &m->arena);
-        m->tex_test   = assets_load_texture(&m->assets, "test.png");
-        m->tex_grid   = assets_load_texture(&m->assets, "grid.png");
+        assets_init(&m->assets, &m->arena);
 
-        // First-time spawn - one moving sprite to verify the ECS setup, update/render pipeline
-        const float width  = 100.0f;
-        const float height = 100.0f;
-        const ecs_entity_t e1 = ecs_new(m->ecs);
-        ecs_set(m->ecs, e1, Position, { SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f });
-        ecs_set(m->ecs, e1, Velocity, { 200, 140 });
-        ecs_set(m->ecs, e1, Renderable, { RENDERABLE_DEFAULTS, .size = (Vector2){ width, height }, .layer = 0 });
-        ecs_set(m->ecs, e1, Collider,   { COLLIDER_DEFAULTS,   .size = (Vector2){ width, height } });
-        const char      *anim_tag  = "hero-idle";
-        const AtlasSlot *atlas      = assets_get_atlas(&m->assets, m->atlas_hero);
-        const int        num_frames = atlas_num_regions_for_tag(atlas, anim_tag);
-        if (num_frames > 0) {
-            TexRegion *frames = ARENA_NEW_ARRAY(&m->arena, TexRegion, num_frames);
-            const int frames_count = atlas_find_regions_by_tag(atlas, anim_tag, frames, num_frames);
-            if (frames_count != num_frames) {
-                TraceLog(LOG_WARNING, "animator(%s): num frames - expected(%d) != actual(%d)", anim_tag, num_frames, frames_count);
-            }
-            ecs_set(m->ecs, e1, Animator, {
-                ANIMATOR_DEFAULTS,
-                .mode          = ANIM_LOOP,
-                .frame_seconds = 0.1f,
-                .frames_count  = frames_count,
-                .frames        = frames
-            });
-        }
-        m->test_entity_1 = e1;
-
-        const ecs_entity_t e2 = ecs_new(m->ecs);
-        ecs_set(m->ecs, e2, Position, { SCREEN_WIDTH / 2.0f + 50.0f, SCREEN_HEIGHT / 2.0f + 50.0f });
-        ecs_set(m->ecs, e2, Velocity, { 200, 140 });
-        ecs_set(m->ecs, e2, Renderable, { RENDERABLE_DEFAULTS, .size = (Vector2){ width, height }, .layer = 1 });
-        ecs_set(m->ecs, e2, Collider,   { COLLIDER_DEFAULTS,   .size = (Vector2){ width, height } });
-        const char      *anim_tag_2   = "hero-run";
-        const int        num_frames_2 = atlas_num_regions_for_tag(atlas, anim_tag_2);
-        if (num_frames_2 > 0) {
-            TexRegion *frames = ARENA_NEW_ARRAY(&m->arena, TexRegion, num_frames_2);
-            const int frames_count = atlas_find_regions_by_tag(atlas, anim_tag_2, frames, num_frames_2);
-            if (frames_count != num_frames_2) {
-                TraceLog(LOG_WARNING, "animator(%s): num frames - expected(%d) != actual(%d)", anim_tag_2, num_frames_2, frames_count);
-            }
-            ecs_set(m->ecs, e2, Animator, {
-                ANIMATOR_DEFAULTS,
-                .mode          = ANIM_LOOP,
-                .frame_seconds = 0.1f,
-                .frames_count  = frames_count,
-                .frames        = frames
-            });
-        }
-        m->test_entity_2 = e2;
+        const Vector2 size = (Vector2){ 100, 100 };
+        const Vector2 vel  = (Vector2){ 200, 140 };
+        m->test_entity_1 = spawn_animated(m, screen_center, vel, size, 0, "hero-idle");
+        m->test_entity_2 = spawn_animated(m, screen_center, vel, size, 1, "hero-run");
 
         m->initialized = true;
     }
@@ -101,22 +85,28 @@ GAME_EXPORT void game_unload(GameMemory *m) {
 GAME_EXPORT void game_update(GameMemory *m, const GameInput *input, const float dt) {
     // Snapshot the just-finished step before integrating the new one.
     // After this function returns: world_prev = "t", world_curr = "t+dt"
-    m->world_prev = m->world_curr;
-    WorldSnapshot *w = &m->world_curr;
+    m->world_prev           =  m->world_curr;
+    WorldSnapshot *snapshot = &m->world_curr;
+    World *world            = &m->world;
 
     // TESTING: squash, stretch
     if (input->key_space) {
-        Renderable *renderable = ecs_get_mut(m->ecs, m->test_entity_1, Renderable);
-        renderable->scale = (Vector2){ 1.5f, 1.5f };
+        Renderable *renderable = world_get_renderable(world, m->test_entity_1);
+        if (renderable) renderable->scale = (Vector2){ 1.5f, 1.5f };
     }
+
+    m->world.world_bounds = camera_world_bounds(snapshot);
 
     // TODO: camera update will go here, none yet though because it's static
 
-    ecs_singleton_set(m->ecs, Bounds, { camera_world_bounds(w) });
-    ecs_progress(m->ecs, dt);
-    extract_render_snapshot(m->ecs, m->q_renderable_static, m->q_renderable_animated, &m->assets, &w->render);
+    // Run entity systems, ORDER MATTERS!
+    sys_integrate_velocity(world, dt);
+    sys_scale_return      (world, dt);
+    sys_animation         (world, dt);
+    sys_bounce_in_bounds  (world, world->world_bounds);
 
-    w->tick++;
+    extract_render_snapshot(world, &m->assets, &snapshot->render);
+    snapshot->tick++;
 }
 
 GAME_EXPORT void game_render(const GameMemory *m, const float alpha) {
@@ -133,11 +123,11 @@ GAME_EXPORT void game_render(const GameMemory *m, const float alpha) {
     BeginMode2D(camera_to_raylib(cam_pos, cam_zoom));
 
     // Draw background texture
-    const Texture2D texture = assets_get_texture(&m->assets, m->tex_test);
-    if (texture.id != 0) {
-        const int texture_x = SCREEN_WIDTH  / 2 - texture.width  / 2;
-        const int texture_y = SCREEN_HEIGHT / 2 - texture.height / 2;
-        DrawTexture(texture, texture_x, texture_y, WHITE);
+    const Texture2D background = assets_get_texture(&m->assets, TEX_TEST);
+    if (background.id != 0) {
+        const int texture_x = (SCREEN_WIDTH  - background.width ) / 2;
+        const int texture_y = (SCREEN_HEIGHT - background.height) / 2;
+        DrawTexture(background, texture_x, texture_y, WHITE);
     }
 
     // Interpolate between ECS render snapshots
@@ -148,13 +138,13 @@ GAME_EXPORT void game_render(const GameMemory *m, const float alpha) {
         const RenderInstance *prev_inst = NULL;
 
         // Skip if there's nothing to draw for this component renderer instance
-        const Texture2D texture = assets_get_texture(&m->assets, curr_inst->tex_handle);
+        const Texture2D texture = curr_inst->texture;
         if (texture.id == 0) continue;
 
         // Find matching instances between prev and curr based on stable id matches...
         // Linear scan; fine for now, change to hash lookup above ~200 entities
         for (uint32_t j = 0; j < prev->count; j++) {
-            if (prev->stable_id[j] == curr->stable_id[i]) {
+            if (prev->instances[j].entity_id == curr->instances[i].entity_id) {
                 prev_inst = &prev->instances[j];
                 break;
             }

@@ -3,7 +3,7 @@
 
 #include "shared/arena.h"
 #include "shared/assets.h"
-#include "shared/world.h"
+#include "shared/ecs_world.h"
 #include "raylib.h"
 
 #include <stdbool.h>
@@ -11,22 +11,21 @@
 
 // Fixed timestep interpolation is performed on 'render snapshots' from ECS, extracted each fixed step
 typedef struct {
-    Vector2        position;
-    Vector2        size;
-    Vector2        origin;
-    float          rotation;
-    Color          tint;
-    int            layer;
-    TextureHandle  tex_handle;
-    Rectangle      tex_source; // (Rectangle){0,0,0,0} -> full texture, otherwise region
+    uint64_t  entity_id;
+    Vector2   position;
+    Vector2   size;
+    Vector2   origin;
+    float     rotation;
+    Color     tint;
+    int       layer;
+    Texture2D texture;
+    Rectangle tex_source;
 } RenderInstance;
 
 #define MAX_RENDER_INSTANCES 4096
 
 typedef struct {
     RenderInstance  instances[MAX_RENDER_INSTANCES];
-    // Stable id per instance, so prev[i] and curr[i] are the same entity.
-    uint64_t        stable_id[MAX_RENDER_INSTANCES];
     uint32_t        count;
 } RenderSnapshot;
 
@@ -58,7 +57,6 @@ typedef struct {
     WorldSnapshot world_curr;
     EntityId      test_entity_1;
     EntityId      test_entity_2;
-
 } GameMemory;
 
 // Per-frame input snapshot gathered by the platform

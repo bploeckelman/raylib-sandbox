@@ -13,8 +13,6 @@ set(BUILD_EXAMPLES     OFF CACHE BOOL "" FORCE)
 set(BUILD_GAMES        OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_WAYLAND ON  CACHE BOOL "" FORCE)
 set(GLFW_BUILD_X11     OFF CACHE BOOL "" FORCE)
-set(FLECS_STATIC       OFF CACHE BOOL "" FORCE)
-set(FLECS_SHARED       ON  CACHE BOOL "" FORCE)
 
 FetchContent_Declare(raylib
         GIT_REPOSITORY "https://github.com/raysan5/raylib.git"
@@ -22,13 +20,6 @@ FetchContent_Declare(raylib
         GIT_PROGRESS   TRUE
 )
 FetchContent_MakeAvailable(raylib)
-
-FetchContent_Declare(flecs
-        GIT_REPOSITORY "https://github.com/SanderMertens/flecs.git"
-        GIT_TAG        "v4.1.5"
-        GIT_PROGRESS   TRUE
-)
-FetchContent_MakeAvailable(flecs)
 
 # All artifacts in one place so the loaded game.dll and raylib.dll sit next
 # to platform.exe at runtime. Set the CLion run config's working directory
@@ -47,7 +38,6 @@ add_library(shared OBJECT ${SHARED_SOURCES})
 set_target_properties(shared PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(shared PUBLIC "${SOURCES_DIR}")
 target_link_libraries(shared PUBLIC raylib)
-target_link_libraries(shared PUBLIC flecs)
 
 # -- Game module: shared library, hot-swappable --
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS "${SOURCES_DIR}/game/*.c")
@@ -66,7 +56,7 @@ file(GLOB_RECURSE PLATFORM_SOURCES CONFIGURE_DEPENDS "${SOURCES_DIR}/platform/*.
 add_executable(${PROJECT_NAME} ${PLATFORM_SOURCES})
 target_link_libraries(${PROJECT_NAME} PRIVATE shared)
 
-# Stage raylib.dll, flecs.dll next to platform.exe / game.dll on every build
+# Stage raylib.dll next to platform.exe / game.dll on every build
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy -t
             $<TARGET_FILE_DIR:${PROJECT_NAME}>

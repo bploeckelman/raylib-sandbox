@@ -2,9 +2,8 @@
 // runs the timing loop, gathers input, and dynamically loads the game module.
 
 #include "game/game.h"
-#include "shared/common.h"
 #include "shared/assets.h"
-#include "shared/ecs_setup.h"
+#include "shared/common.h"
 #include "raylib.h"
 #include "resource_dir.h"
 
@@ -127,8 +126,6 @@ int main(void) {
 
     SearchAndSetResourceDir("resources");
 
-    g_memory.ecs = ecs_setup_create_world();
-
     GameModule game = {0};
     if (!game_module_load(&game)) {
         TraceLog(LOG_FATAL, "could not load game module: %s", g_dll_built_path);
@@ -179,7 +176,7 @@ int main(void) {
         }
 
         // Remaining accumulator becomes the interpolation factor for rendering
-        float alpha = (float)(accumulator / dt);
+        const float alpha = (float)(accumulator / dt);
         game.api.render(&g_memory, alpha);
     }
 
@@ -188,9 +185,6 @@ int main(void) {
     game.api.shutdown(&g_memory);
     game.api.unload(&g_memory);
     game_module_unload(&game);
-
-    ecs_setup_destroy_world(g_memory.ecs);
-    g_memory.ecs = NULL;
 
     CloseWindow();
     return 0;
