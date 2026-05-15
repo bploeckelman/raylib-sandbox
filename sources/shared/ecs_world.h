@@ -19,14 +19,16 @@ typedef uint32_t EntityId;
         component_type data   [MAX_ENTITIES];         \
     } name;
 
-DECLARE_COMPONENT_STORE(BoundsStore,     Bounds)
-DECLARE_COMPONENT_STORE(PositionStore,   Position)
-DECLARE_COMPONENT_STORE(VelocityStore,   Velocity)
-DECLARE_COMPONENT_STORE(ColliderStore,   Collider)
-DECLARE_COMPONENT_STORE(RenderableStore, Renderable)
-DECLARE_COMPONENT_STORE(TexRegionStore,  TexRegion)
-DECLARE_COMPONENT_STORE(AnimatorStore,   Animator)
-DECLARE_COMPONENT_STORE(TilemapStore,    Tilemap)
+DECLARE_COMPONENT_STORE(BoundsStore,         Bounds)
+DECLARE_COMPONENT_STORE(PositionStore,       Position)
+DECLARE_COMPONENT_STORE(VelocityStore,       Velocity)
+DECLARE_COMPONENT_STORE(ColliderStore,       Collider)
+DECLARE_COMPONENT_STORE(RenderableStore,     Renderable)
+DECLARE_COMPONENT_STORE(TexRegionStore,      TexRegion)
+DECLARE_COMPONENT_STORE(AnimatorStore,       Animator)
+DECLARE_COMPONENT_STORE(TilemapStore,        Tilemap)
+DECLARE_COMPONENT_STORE(MovePlatformerStore, MovePlatformer)
+DECLARE_COMPONENT_STORE(MoveTopdownStore,    MoveTopdown)
 
 #undef DECLARE_COMPONENT_STORE
 
@@ -38,14 +40,16 @@ typedef struct {
     Bounds world_bounds;
     TmxMap *map;
 
-    BoundsStore     bounds;
-    PositionStore   positions;
-    VelocityStore   velocities;
-    ColliderStore   colliders;
-    RenderableStore renderables;
-    TexRegionStore  tex_regions;
-    AnimatorStore   animators;
-    TilemapStore    tilemaps;
+    BoundsStore         bounds;
+    PositionStore       positions;
+    VelocityStore       velocities;
+    ColliderStore       colliders;
+    RenderableStore     renderables;
+    TexRegionStore      tex_regions;
+    AnimatorStore       animators;
+    TilemapStore        tilemaps;
+    MovePlatformerStore move_platformers;
+    MoveTopdownStore    move_topdowns;
 } World;
 
 // Lifecycle
@@ -54,23 +58,27 @@ void     world_destroy_entity (World *world, EntityId id);
 bool     world_entity_is_alive(const World *world, EntityId id);
 
 // Per-component setters
-void world_set_bounds     (World *world, EntityId id, Bounds     value);
-void world_set_position   (World *world, EntityId id, Position   value);
-void world_set_velocity   (World *world, EntityId id, Velocity   value);
-void world_set_collider   (World *world, EntityId id, Collider   value);
-void world_set_renderable (World *world, EntityId id, Renderable value);
-void world_set_tex_region (World *world, EntityId id, TexRegion  value);
-void world_set_animator   (World *world, EntityId id, Animator   value);
-void world_set_tilemap    (World *world, EntityId id, Tilemap    value);
+void world_set_bounds         (World *world, EntityId id, Bounds         value);
+void world_set_position       (World *world, EntityId id, Position       value);
+void world_set_velocity       (World *world, EntityId id, Velocity       value);
+void world_set_collider       (World *world, EntityId id, Collider       value);
+void world_set_renderable     (World *world, EntityId id, Renderable     value);
+void world_set_tex_region     (World *world, EntityId id, TexRegion      value);
+void world_set_animator       (World *world, EntityId id, Animator       value);
+void world_set_tilemap        (World *world, EntityId id, Tilemap        value);
+void world_set_move_platformer(World *world, EntityId id, MovePlatformer value);
+void world_set_move_topdown   (World *world, EntityId id, MoveTopdown    value);
 
 // Per-component getters (returns NULL if not present)
-Bounds     *world_get_bounds     (World *world, EntityId id);
-Position   *world_get_position   (World *world, EntityId id);
-Velocity   *world_get_velocity   (World *world, EntityId id);
-Collider   *world_get_collider   (World *world, EntityId id);
-Renderable *world_get_renderable (World *world, EntityId id);
-TexRegion  *world_get_tex_region (World *world, EntityId id);
-Animator   *world_get_animator   (World *world, EntityId id);
-Tilemap    *world_get_tilemap    (World *world, EntityId id);
+Bounds         *world_get_bounds         (World *world, EntityId id);
+Position       *world_get_position       (World *world, EntityId id);
+Velocity       *world_get_velocity       (World *world, EntityId id);
+Collider       *world_get_collider       (World *world, EntityId id);
+Renderable     *world_get_renderable     (World *world, EntityId id);
+TexRegion      *world_get_tex_region     (World *world, EntityId id);
+Animator       *world_get_animator       (World *world, EntityId id);
+Tilemap        *world_get_tilemap        (World *world, EntityId id);
+MovePlatformer *world_get_move_platformer(World *world, EntityId id);
+MoveTopdown    *world_get_move_topdown   (World *world, EntityId id);
 
 #endif //WORLD_H

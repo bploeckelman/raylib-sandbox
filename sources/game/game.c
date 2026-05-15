@@ -4,9 +4,10 @@
 // only how to advance and draw the simulation.
 
 #define RAYTMX_IMPLEMENTATION
-#include "game/game.h"
-#include "game/camera.h"
-#include "game/ecs_systems.h"
+#include "game.h"
+#include "camera.h"
+#include "systems/ecs_systems.h"
+#include "collision/collision.h"
 #include "shared/assets.h"
 #include "shared/common.h"
 #include "shared/raytmx.h"
@@ -67,10 +68,13 @@ static EntityId spawn_animated(
     const EntityId entity = world_create_entity(world);
     if (entity == ENTITY_NONE) return ENTITY_NONE;
 
-    world_set_position  (world, entity, pos);
-    world_set_velocity  (world, entity, vel);
-    world_set_renderable(world, entity, (Renderable){ RENDERABLE_DEFAULTS, .size = size, .layer = layer });
-    world_set_collider  (world, entity, (Collider)  { COLLIDER_DEFAULTS,   .size = size });
+    const Vector2  zero = (Vector2){ 0, 0 };
+
+    world_set_position       (world, entity, pos);
+    world_set_velocity       (world, entity, (Velocity){ .value = vel, .remainder = zero });
+    world_set_renderable     (world, entity, (Renderable){ RENDERABLE_DEFAULTS, .size = size, .layer = layer });
+    world_set_collider       (world, entity, collider_rect(zero, size, COL_PLAYER, COL_PLAYER | COL_SOLID));
+    world_set_move_platformer(world, entity, (MovePlatformer){ MOVE_PLATFORMER_DEFAULTS });
 
     const Atlas        *atlas         = assets_get_atlas(assets, ATLAS_HERO);
     const AtlasRegions  atlas_regions = atlas_find_regions_by_tag(atlas, anim_tag, arena);
@@ -100,10 +104,13 @@ GAME_EXPORT void game_load(GameMemory *m) {
 
         assets_init(&m->assets, &m->arena);
 
-        const Vector2 size = (Vector2){ 100, 100 };
-        const Vector2 vel  = (Vector2){ 200, 140 };
-        m->test_entity_1 = spawn_animated(m, screen_center, vel, size, 0, "hero-idle");
-        m->test_entity_2 = spawn_animated(m, screen_center, vel, size, 1, "hero-run");
+        const Vector2 size  = (Vector2){  100, 100 };
+        const Vector2 vel_1 = (Vector2){  200, 140 };
+        const Vector2 vel_2 = (Vector2){ -200, 140 };
+        const Vector2 pos_1 = (Vector2){ screen_center.x, screen_center.y + 50};
+        const Vector2 pos_2 = (Vector2){ screen_center.x, screen_center.y - 50 - size.y };
+        m->test_entity_1 = spawn_animated(m, pos_1, vel_1, size, 0, "hero-idle");
+        m->test_entity_2 = spawn_animated(m, pos_2, vel_2, size, 1, "hero-run");
 
         m->entity_map = spawn_map(m, screen_center, "maps/example.tmx");
 
@@ -137,10 +144,11 @@ GAME_EXPORT void game_update(GameMemory *m, const GameInput *input, const float 
     // TODO: camera update will go here, none yet though because it's static
 
     // Run entity systems, ORDER MATTERS!
-    sys_integrate_velocity(world, dt);
-    sys_scale_return      (world, dt);
-    sys_animation         (world, dt);
-    sys_bounce_in_bounds  (world, world->world_bounds);
+    // sys_integrate_velocity(world, dt);
+    sys_move_platformer (world, dt);
+    sys_scale_return    (world, dt);
+    sys_animation       (world, dt);
+    sys_bounce_in_bounds(world, world->world_bounds);
 
     extract_render_snapshot(world, &m->assets, &snapshot->render);
     snapshot->tick++;
